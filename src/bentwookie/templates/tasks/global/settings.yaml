@@ -1,0 +1,64 @@
+# Records past BW settings and choices made by the user.
+# These allow historic choices to be come future defaults,
+# or "other" values to be added to future multiple choice lists.
+
+envfile: ./.bwenv
+
+last_selected:
+- phase: "MVP"
+- priority: 5
+- change_type: New Feature
+- project_code_rootpath: "./some/path/"
+- infrastructure:
+  compute: AWS Lambda
+  storage: AWS AuroraDB
+  queue: AWS Kinesis
+  access: AWS API Gateway
+  
+
+change_type:
+- New Feature
+- Feature Enhancement
+- Bug-Fix 
+
+phase:
+- MVP
+- V1.0
+- V1.0 
+
+infrastructure:
+  compute: 
+  - AWS Lambda
+  - AWS EC2
+  - AWS Serverless
+  - AWS ECS 
+  - Local Container
+  - Local Code Only
+  - Don't Care
+
+  storage:
+  - AWS AuroraDB
+  - AWS DynamoDB
+  - AWS S3 Bucket
+  - Local File System
+  - Local Container File System
+  - Don't Care
+
+  queue:
+  - None (push only)
+  - AWS Kinesis
+  - AWS MSK (Kafka)
+  - AWS EC2 Kafka / K8
+  - AWS SQS
+  - AWS EventBridge
+  - AWS Step Functions
+  - Local Kafka  
+  - Don't Care
+  
+  access:
+  - AWS API Gateway (secure)
+  - AWS API Gateway (public)
+  - AWS Direct Lambda Connect
+  - Direct Compute Connection
+  - Pulls from Queue
+  - Don't Care
