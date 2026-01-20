@@ -1,0 +1,60 @@
+change_type:
+- New Feature
+- Feature Enhancement
+- Bug-Fix
+envfile: ./.bwenv
+infrastructure:
+  access:
+  - AWS API Gateway (secure)
+  - AWS API Gateway (public)
+  - AWS Direct Lambda Connect
+  - Direct Compute Connection
+  - Pulls from Queue
+  - Don't Care
+  - Other
+  compute:
+  - AWS Lambda
+  - AWS EC2
+  - AWS Serverless
+  - AWS ECS
+  - Local Container
+  - Local Code Only
+  - Don't Care
+  - Other
+  queue:
+  - None (push only)
+  - AWS Kinesis
+  - AWS MSK (Kafka)
+  - AWS EC2 Kafka / K8
+  - AWS SQS
+  - AWS EventBridge
+  - AWS Step Functions
+  - Local Kafka
+  - Don't Care
+  - Other
+  storage:
+  - AWS AuroraDB
+  - AWS DynamoDB
+  - AWS S3 Bucket
+  - Local File System
+  - Local Container File System
+  - Don't Care
+  - Other
+last_selected:
+  access: AWS API Gateway
+  change_type: New Feature
+  compute: AWS Lambda
+  infrastructure: null
+  infrastructure.access: Direct Compute Connection
+  infrastructure.compute: Local Code Only
+  infrastructure.queue: None (push only)
+  infrastructure.storage: Local File System
+  phase: MVP
+  priority: 5
+  project_code_rootpath: /Users/stephen.hilton/Dev/bentwookie/test/init_test/code
+  queue: AWS Kinesis
+  storage: AWS AuroraDB
+phase:
+- MVP
+- V1.0
+- V1.0
