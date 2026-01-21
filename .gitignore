@@ -1,7 +1,7 @@
 # Project Specific
 *paydaay/
 .venv*
-bentwookie.db
+bentwookie.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

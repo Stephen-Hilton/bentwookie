@@ -1,6 +1,8 @@
 """Request processor using Claude Agent SDK."""
 
 import asyncio
+import os
+from pathlib import Path
 
 from ..constants import (
     DAEMON_MAX_TURNS,
@@ -61,19 +63,40 @@ async def process_request(request: dict) -> bool:
         queries.update_request_status(reqid, STATUS_ERR)
         return False
 
+    # Check for API key
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        logger.error(
+            "ANTHROPIC_API_KEY not set. Set it with:\n"
+            "  export ANTHROPIC_API_KEY='your-key-here'\n"
+            "Or source your .env file:\n"
+            "  source .env"
+        )
+        queries.update_request_status(reqid, STATUS_ERR)
+        return False
+
     try:
         # Build phase-specific prompt
         prompt = get_phase_prompt(request)
 
+        # Determine working directory (must be absolute path)
+        code_dir = request.get("reqcodedir")
+        if code_dir:
+            cwd = str(Path(code_dir).resolve())
+        else:
+            cwd = os.getcwd()
+
         # Configure Claude SDK
         options = ClaudeAgentOptions(
             model=DEFAULT_MODEL,
-            cwd=request.get("reqcodedir") or ".",
+            cwd=cwd,
             system_prompt=get_system_prompt(request),
             allowed_tools=get_phase_tools(phase),
             permission_mode=DEFAULT_PERMISSION_MODE,
             max_turns=DAEMON_MAX_TURNS,
         )
+
+        logger.info(f"Using cwd: {cwd}")
 
         # Set timeout
         timeout = get_phase_timeout(phase)
@@ -109,14 +132,32 @@ async def process_request(request: dict) -> bool:
         return False
 
     except Exception as e:
-        logger.exception(f"Error processing request {reqid}: {e}")
+        error_msg = str(e)
+
+        # Check for common issues and provide helpful messages
+        if "credit" in error_msg.lower() or "balance" in error_msg.lower() or "billing" in error_msg.lower():
+            logger.error(
+                f"Request {reqid} failed: Insufficient credits.\n"
+                "  Add credits at: https://console.anthropic.com/settings/billing"
+            )
+        elif "exit code 1" in error_msg.lower() or "command failed" in error_msg.lower():
+            # Generic CLI error - might be billing, auth, or other issue
+            logger.error(
+                f"Request {reqid} failed: Claude CLI returned an error.\n"
+                "  Check your API credits and authentication."
+            )
+        elif "api" in error_msg.lower() or "key" in error_msg.lower() or "auth" in error_msg.lower():
+            logger.error(f"Request {reqid} failed: Authentication error - {error_msg}")
+        else:
+            logger.error(f"Request {reqid} failed in phase {phase}: {error_msg}")
+
         queries.update_request_status(reqid, STATUS_ERR)
 
         # Try to add learning about the error
         try:
             queries.add_learning(
                 request["prjid"],
-                f"Error in {phase} phase for {request['reqname']}: {str(e)[:200]}"
+                f"Error in {phase} phase for {request['reqname']}: {error_msg[:200]}"
             )
         except Exception:
             pass
