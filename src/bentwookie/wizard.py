@@ -1,7 +1,5 @@
 """Planning wizard for creating new BentWookie tasks."""
 
-import re
-from pathlib import Path
 from typing import Any
 
 import questionary
@@ -9,16 +7,14 @@ from questionary import Style
 
 from .config import get_config
 from .constants import (
-    CHANGE_TYPE_BUGFIX,
     DEFAULT_PRIORITY,
     PRIORITY_MAX,
     PRIORITY_MIN,
     PROJECT_PHASES,
     VALID_CHANGE_TYPES,
 )
-from .core import create_task_file, get_stage_resources, Task
+from .core import Task, create_task_file, get_stage_resources
 from .exceptions import WizardError
-
 
 # Custom style for the wizard
 WIZARD_STYLE = Style([
@@ -99,10 +95,10 @@ class PlanningWizard:
         if not options:
             # Use defaults from constants
             from .constants import (
-                COMPUTE_OPTIONS,
-                STORAGE_OPTIONS,
-                QUEUE_OPTIONS,
                 ACCESS_OPTIONS,
+                COMPUTE_OPTIONS,
+                QUEUE_OPTIONS,
+                STORAGE_OPTIONS,
             )
             defaults = {
                 "compute": COMPUTE_OPTIONS,
@@ -435,7 +431,7 @@ class PlanningWizard:
             print(f"  - Queue:   {infra.get('queue', 'N/A')}")
             print(f"  - Access:  {infra.get('access', 'N/A')}")
 
-        print(f"\n- Instructions:")
+        print("\n- Instructions:")
         desc = self._answers.get("description", "N/A")
         for line in desc.split("\n"):
             print(f"  > {line}")

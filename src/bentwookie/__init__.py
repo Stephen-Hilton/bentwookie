@@ -1,104 +1,146 @@
-"""BentWookie - AI coding loop workflow manager.
+"""BentWookie v2 - AI coding loop workflow manager.
 
-BentWookie manages task-based AI development workflows, guiding tasks
-through stages from planning to deployment.
+BentWookie manages development requests through phases using the
+Claude Agent SDK for execution, with SQLite for state management.
 
 Usage:
-    import bentwookie as bw
+    # CLI
+    bw init                          # Initialize database
+    bw project create myproject      # Create a project
+    bw request create myproject ...  # Create a request
+    bw loop start                    # Start the daemon
+    bw web                           # Start web UI
 
-    # Initialize templates in a project
-    bw.init("./myproject")
+    # Python API
+    from bentwookie import db, models
 
-    # Set environment file
-    bw.env("./myproject/.env")
+    # Initialize database
+    db.init_db()
 
-    # Set log path pattern
-    bw.logs("./myproject/logs/{loopname}_{today}.log")
+    # Create a project
+    prjid = db.create_project("myproject", prjdesc="My awesome project")
 
-    # Create a new task plan
-    bw.plan("My New Feature")
-
-    # Get the next prompt for AI execution
-    prompt = bw.next_prompt("myloop")
+    # Create a request
+    reqid = db.create_request(
+        prjid=prjid,
+        reqname="Add feature",
+        reqprompt="Implement user authentication"
+    )
 """
 
-import shutil
-from pathlib import Path
-from typing import Optional
+# Version
+__version__ = "2.0.0"
 
-from .config import init_config, get_config, BWConfig
-from .core import (
-    Task,
-    get_task,
-    save_task,
-    get_all_tasks,
-    task_ready,
-    validate_tasks,
-    get_next_stage,
-    move_stage,
-    update_status,
-    create_task_file,
-    get_task_by_name,
-    get_stage_resources,
-    get_global_resources,
+# Database operations
+# Constants
+from .constants import (
+    DEFAULT_PRIORITY,
+    NEXT_PHASE,
+    PHASE_NAMES,
+    PHASE_ORDER,
+    PHASES,
+    STATUS_NAMES,
+    TYPE_NAMES,
+    V2_STATUSES,
+    VALID_PROJECT_PHASES,
+    VALID_REQUEST_TYPES,
+    VALID_STATUSES,
+    VALID_VERSIONS,
 )
+from .db import (
+    add_infrastructure,
+    add_learning,
+    create_project,
+    create_request,
+    delete_project,
+    delete_request,
+    get_db,
+    get_next_request,
+    get_project,
+    get_project_by_name,
+    get_project_infrastructure,
+    get_project_learnings,
+    get_request,
+    init_db,
+    list_projects,
+    list_requests,
+    update_project,
+    update_request_phase,
+    update_request_status,
+)
+
+# Exceptions
 from .exceptions import (
     BentWookieError,
+    ConfigurationError,
+    RaceConditionError,
+    StageError,
+    TaskNotFoundError,
     TaskParseError,
     TaskValidationError,
-    TaskNotFoundError,
-    StageError,
-    ConfigurationError,
     TemplateError,
-    RaceConditionError,
     WizardError,
 )
-from .logging_util import init_logger, get_logger, BWLogger
-from .prompt_builder import next_prompt as _next_prompt, whitespace_prompt
-from .whitespace import (
-    WHITESPACE_FUNCTIONS,
-    get_whitespace_function_names,
-    run_whitespace_function,
-    run_random_whitespace_function,
-    run_all_whitespace_functions,
-)
-from .wizard import plan as _plan, PlanningWizard
 
-__version__ = "0.1.0"
+# Logging
+from .logging_util import (
+    BWLogger,
+    get_logger,
+    init_logger,
+)
+
+# Models
+from .models import (
+    DaemonStatus,
+    Infrastructure,
+    Learning,
+    Project,
+    Request,
+)
+
+# Export all public symbols
 __all__ = [
     # Version
     "__version__",
-    # Main functions
-    "init",
-    "env",
-    "logs",
-    "plan",
-    "next_prompt",
-    # Core functions
-    "get_task",
-    "save_task",
-    "get_all_tasks",
-    "task_ready",
-    "validate_tasks",
-    "get_next_stage",
-    "move_stage",
-    "update_status",
-    "create_task_file",
-    "get_task_by_name",
-    "get_stage_resources",
-    "get_global_resources",
-    "whitespace_prompt",
-    # Whitespace functions
-    "WHITESPACE_FUNCTIONS",
-    "get_whitespace_function_names",
-    "run_whitespace_function",
-    "run_random_whitespace_function",
-    "run_all_whitespace_functions",
-    # Classes
-    "Task",
-    "BWConfig",
-    "BWLogger",
-    "PlanningWizard",
+    # Database
+    "init_db",
+    "get_db",
+    "create_project",
+    "get_project",
+    "get_project_by_name",
+    "list_projects",
+    "update_project",
+    "delete_project",
+    "create_request",
+    "get_request",
+    "get_next_request",
+    "list_requests",
+    "update_request_status",
+    "update_request_phase",
+    "delete_request",
+    "add_infrastructure",
+    "get_project_infrastructure",
+    "add_learning",
+    "get_project_learnings",
+    # Models
+    "Project",
+    "Request",
+    "Infrastructure",
+    "Learning",
+    "DaemonStatus",
+    # Constants
+    "PHASES",
+    "PHASE_ORDER",
+    "NEXT_PHASE",
+    "PHASE_NAMES",
+    "V2_STATUSES",
+    "VALID_STATUSES",
+    "STATUS_NAMES",
+    "VALID_REQUEST_TYPES",
+    "TYPE_NAMES",
+    "VALID_VERSIONS",
+    "VALID_PROJECT_PHASES",
+    "DEFAULT_PRIORITY",
     # Exceptions
     "BentWookieError",
     "TaskParseError",
@@ -109,102 +151,8 @@ __all__ = [
     "TemplateError",
     "RaceConditionError",
     "WizardError",
+    # Logging
+    "BWLogger",
+    "get_logger",
+    "init_logger",
 ]
-
-
-def init(path: str | Path) -> Path:
-    """Initialize BentWookie templates in a directory.
-
-    Copies the tasks/ template folder structure to the specified location.
-
-    Args:
-        path: Destination directory
-
-    Returns:
-        Path to the created tasks directory
-
-    Raises:
-        ConfigurationError: If templates cannot be copied
-    """
-    from .cli import get_templates_path
-
-    dest_path = Path(path)
-    templates_src = get_templates_path()
-    tasks_src = templates_src / "tasks"
-
-    if not tasks_src.exists():
-        raise ConfigurationError("templates", f"Templates not found at {tasks_src}")
-
-    tasks_dest = dest_path / "tasks"
-
-    if tasks_dest.exists():
-        shutil.rmtree(tasks_dest)
-
-    try:
-        shutil.copytree(tasks_src, tasks_dest)
-        return tasks_dest
-    except OSError as e:
-        raise ConfigurationError("init", f"Failed to copy templates: {e}")
-
-
-def env(path: str | Path) -> BWConfig:
-    """Set and load the environment file.
-
-    Args:
-        path: Path to .env file
-
-    Returns:
-        Updated configuration instance
-    """
-    config = init_config(env_path=path)
-
-    # Update settings.yaml with the env path
-    config.update_setting("envfile", str(path))
-
-    return config
-
-
-def logs(path: str) -> BWConfig:
-    """Set the log file path pattern.
-
-    Args:
-        path: Log file path pattern (supports {today}, {loopname}, etc.)
-
-    Returns:
-        Updated configuration instance
-    """
-    config = get_config()
-    config._logs_path = path
-
-    # Re-initialize logger with new path
-    init_logger(log_path=path)
-
-    return config
-
-
-def plan(feature_name: Optional[str] = None) -> Task | None:
-    """Run the planning wizard to create a new task.
-
-    Args:
-        feature_name: Optional pre-set feature name
-
-    Returns:
-        Created task dictionary, or None if cancelled
-    """
-    return _plan(feature_name)
-
-
-def next_prompt(loop_name: Optional[str] = None) -> str:
-    """Get the next prompt for AI execution.
-
-    This is the main entry point for the BentWookie loop.
-    Returns a prompt for the highest priority ready task,
-    or a whitespace prompt if no tasks are available.
-
-    Args:
-        loop_name: Optional loop name for logging/identification
-
-    Returns:
-        Prompt string to execute
-    """
-    return _next_prompt(loop_name)

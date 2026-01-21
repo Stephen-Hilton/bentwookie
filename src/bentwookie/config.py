@@ -145,7 +145,7 @@ class BWConfig:
             return self._settings
 
         try:
-            with open(self.settings_file, "r", encoding="utf-8") as f:
+            with open(self.settings_file, encoding="utf-8") as f:
                 self._settings = yaml.safe_load(f) or {}
                 return self._settings
         except yaml.YAMLError as e:

@@ -5,18 +5,15 @@ tasks are in the queue. They perform real work and return results
 that can be included in prompts for AI review.
 """
 
-import os
 import re
 import subprocess
-from collections import Counter
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable
 
 from .config import get_config
 from .constants import LEARNINGS_FILE, STAGES
 from .logging_util import get_logger
-
 
 # Type alias for whitespace function
 WhitespaceFunc = Callable[[], str]
@@ -401,12 +398,12 @@ def check_test_coverage() -> str:
 
     logger.info(f"Found {len(source_files)} source files, {len(test_files)} test files")
 
-    result = f"Test coverage analysis:\n"
+    result = "Test coverage analysis:\n"
     result += f"  Source modules: {len(source_files)}\n"
     result += f"  Test files: {len(test_files)}\n"
 
     if untested:
-        result += f"\nModules without dedicated tests:\n"
+        result += "\nModules without dedicated tests:\n"
         for mod in sorted(untested)[:10]:
             result += f"  - {mod}\n"
         if len(untested) > 10:

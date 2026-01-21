@@ -10,7 +10,6 @@ from typing import Any
 
 from .config import get_config
 from .constants import (
-    RACE_CONDITION_SLEEP,
     STATUS_PLANNING,
     WHITESPACE_SLEEP,
 )
