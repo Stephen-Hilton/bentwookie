@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import time
 from pathlib import Path
 
 from ..constants import (
@@ -14,6 +15,54 @@ from ..constants import (
     STATUS_TMOUT,
     STATUS_WIP,
 )
+
+# Rate limit handling
+MAX_RETRIES = 3
+INITIAL_BACKOFF = 60  # seconds
+MAX_BACKOFF = 600  # 10 minutes
+
+# Track rate limit state globally so daemon can pause
+_rate_limited_until: float = 0
+
+
+def is_rate_limited() -> bool:
+    """Check if we're currently rate limited.
+
+    Returns:
+        True if rate limited and should wait.
+    """
+    return time.time() < _rate_limited_until
+
+
+def get_rate_limit_wait() -> float:
+    """Get seconds to wait before retrying.
+
+    Returns:
+        Seconds until rate limit expires, or 0 if not limited.
+    """
+    wait = _rate_limited_until - time.time()
+    return max(0, wait)
+
+
+def _is_rate_limit_error(error_msg: str) -> bool:
+    """Check if an error message indicates rate limiting.
+
+    Args:
+        error_msg: Error message string.
+
+    Returns:
+        True if this is a rate limit error.
+    """
+    error_lower = error_msg.lower()
+    return any(indicator in error_lower for indicator in [
+        "rate limit",
+        "rate_limit",
+        "ratelimit",
+        "429",
+        "too many requests",
+        "overloaded",
+        "capacity",
+    ])
 from ..db import queries
 from ..logging_util import get_logger
 from .phases import (
@@ -63,17 +112,26 @@ async def process_request(request: dict) -> bool:
         queries.update_request_status(reqid, STATUS_ERR)
         return False
 
-    # Check for API key
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        logger.error(
-            "ANTHROPIC_API_KEY not set. Set it with:\n"
-            "  export ANTHROPIC_API_KEY='your-key-here'\n"
-            "Or source your .env file:\n"
-            "  source .env"
-        )
-        queries.update_request_status(reqid, STATUS_ERR)
-        return False
+    # Check auth mode and validate accordingly
+    from ..settings import get_auth_mode, AUTH_MODE_API, AUTH_MODE_MAX
+
+    auth_mode = get_auth_mode()
+    if auth_mode == AUTH_MODE_API:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.error(
+                "Auth mode is 'api' but ANTHROPIC_API_KEY not set.\n"
+                "  Either set the key: export ANTHROPIC_API_KEY='your-key'\n"
+                "  Or switch to Max mode: bw config --auth max"
+            )
+            queries.update_request_status(reqid, STATUS_ERR)
+            return False
+    elif auth_mode == AUTH_MODE_MAX:
+        # Unset API key so SDK uses CLI's web auth instead
+        if "ANTHROPIC_API_KEY" in os.environ:
+            logger.debug("Unsetting ANTHROPIC_API_KEY to use Claude Max web auth")
+            del os.environ["ANTHROPIC_API_KEY"]
+        logger.debug("Using Claude Max subscription (web auth)")
 
     try:
         # Build phase-specific prompt
@@ -132,7 +190,20 @@ async def process_request(request: dict) -> bool:
         return False
 
     except Exception as e:
+        global _rate_limited_until
         error_msg = str(e)
+
+        # Check for rate limit errors - these should be retried
+        if _is_rate_limit_error(error_msg):
+            backoff = INITIAL_BACKOFF
+            _rate_limited_until = time.time() + backoff
+            logger.warning(
+                f"Request {reqid} hit rate limit. Will retry in {backoff}s.\n"
+                f"  Error: {error_msg[:100]}"
+            )
+            # Keep status as TBD so it gets retried
+            queries.update_request_status(reqid, STATUS_TBD)
+            return False
 
         # Check for common issues and provide helpful messages
         if "credit" in error_msg.lower() or "balance" in error_msg.lower() or "billing" in error_msg.lower():

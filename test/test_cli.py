@@ -59,7 +59,7 @@ class TestInitCommand:
     def test_init_creates_database(self, runner, temp_dir):
         """Test init creates database and directories."""
         db_path = temp_dir / "data" / "bw.db"
-        result = runner.invoke(main, ["init", "--db-path", str(db_path)])
+        result = runner.invoke(main, ["init", "--db-path", str(db_path), "--auth", "max"])
 
         assert result.exit_code == 0
         assert "Database initialized" in result.output
@@ -71,7 +71,7 @@ class TestProjectCommands:
     def test_project_create(self, runner, temp_db):
         """Test project create command."""
         # Initialize DB first
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
 
         result = runner.invoke(main, ["project", "create", "testproject", "-d", "Test desc"])
         assert result.exit_code == 0
@@ -80,7 +80,7 @@ class TestProjectCommands:
 
     def test_project_list_empty(self, runner, temp_db):
         """Test project list with no projects."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
 
         result = runner.invoke(main, ["project", "list"])
         assert result.exit_code == 0
@@ -88,7 +88,7 @@ class TestProjectCommands:
 
     def test_project_list_with_projects(self, runner, temp_db):
         """Test project list with projects."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
 
         result = runner.invoke(main, ["project", "list"])
@@ -97,7 +97,7 @@ class TestProjectCommands:
 
     def test_project_show(self, runner, temp_db):
         """Test project show command."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject", "-d", "My test project"])
 
         result = runner.invoke(main, ["project", "show", "testproject"])
@@ -107,7 +107,7 @@ class TestProjectCommands:
 
     def test_project_show_not_found(self, runner, temp_db):
         """Test project show with non-existent project."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
 
         result = runner.invoke(main, ["project", "show", "nonexistent"])
         assert result.exit_code != 0
@@ -115,7 +115,7 @@ class TestProjectCommands:
 
     def test_project_delete(self, runner, temp_db):
         """Test project delete command."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
 
         result = runner.invoke(main, ["project", "delete", "testproject", "--force"])
@@ -124,7 +124,7 @@ class TestProjectCommands:
 
     def test_project_create_duplicate(self, runner, temp_db):
         """Test creating duplicate project fails."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
 
         result = runner.invoke(main, ["project", "create", "testproject"])
@@ -137,7 +137,7 @@ class TestRequestCommands:
 
     def test_request_create(self, runner, temp_db):
         """Test request create command."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
 
         result = runner.invoke(main, [
@@ -152,7 +152,7 @@ class TestRequestCommands:
 
     def test_request_create_no_project(self, runner, temp_db):
         """Test request create with non-existent project."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
 
         result = runner.invoke(main, [
             "request", "create", "nonexistent",
@@ -164,7 +164,7 @@ class TestRequestCommands:
 
     def test_request_list_empty(self, runner, temp_db):
         """Test request list with no requests."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
 
         result = runner.invoke(main, ["request", "list"])
         assert result.exit_code == 0
@@ -172,7 +172,7 @@ class TestRequestCommands:
 
     def test_request_list_with_requests(self, runner, temp_db):
         """Test request list with requests."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
         runner.invoke(main, [
             "request", "create", "testproject",
@@ -186,7 +186,7 @@ class TestRequestCommands:
 
     def test_request_show(self, runner, temp_db):
         """Test request show command."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
         runner.invoke(main, [
             "request", "create", "testproject",
@@ -201,7 +201,7 @@ class TestRequestCommands:
 
     def test_request_update_status(self, runner, temp_db):
         """Test request update status command."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
         runner.invoke(main, [
             "request", "create", "testproject",
@@ -215,7 +215,7 @@ class TestRequestCommands:
 
     def test_request_update_phase(self, runner, temp_db):
         """Test request update phase command."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
         runner.invoke(main, [
             "request", "create", "testproject",
@@ -229,7 +229,7 @@ class TestRequestCommands:
 
     def test_request_delete(self, runner, temp_db):
         """Test request delete command."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
         runner.invoke(main, [
             "request", "create", "testproject",
@@ -247,7 +247,7 @@ class TestStatusCommand:
 
     def test_status_empty(self, runner, temp_db):
         """Test status with empty database."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
 
         result = runner.invoke(main, ["status"])
         assert result.exit_code == 0
@@ -257,7 +257,7 @@ class TestStatusCommand:
 
     def test_status_with_data(self, runner, temp_db):
         """Test status with some data."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
         runner.invoke(main, ["project", "create", "testproject"])
         runner.invoke(main, [
             "request", "create", "testproject",
@@ -276,7 +276,7 @@ class TestLoopCommands:
 
     def test_loop_status_not_running(self, runner, temp_db):
         """Test loop status when daemon not running."""
-        runner.invoke(main, ["init", "--db-path", str(temp_db)])
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
 
         result = runner.invoke(main, ["loop", "status"])
         assert result.exit_code == 0

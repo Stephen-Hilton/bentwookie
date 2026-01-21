@@ -11,7 +11,7 @@ from ..constants import DAEMON_POLL_INTERVAL
 from ..db import init_db, queries
 from ..logging_util import get_logger, init_logger
 from ..models import DaemonStatus
-from .processor import process_request
+from .processor import get_rate_limit_wait, is_rate_limited, process_request
 
 
 class BentWookieDaemon:
@@ -59,6 +59,13 @@ class BentWookieDaemon:
 
         while self.running:
             try:
+                # Check if rate limited
+                if is_rate_limited():
+                    wait_time = get_rate_limit_wait()
+                    self.logger.info(f"Rate limited. Waiting {wait_time:.0f}s before next request...")
+                    await asyncio.sleep(min(wait_time, self.poll_interval))
+                    continue
+
                 # Get next request to process
                 request = queries.get_next_request()
 

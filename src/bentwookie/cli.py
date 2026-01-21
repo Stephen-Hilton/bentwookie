@@ -91,15 +91,23 @@ def main(ctx: click.Context) -> None:
     default="data/bentwookie.db",
     help="Path for SQLite database",
 )
-def init_cmd(db_path: Path) -> None:
+@click.option(
+    "--auth",
+    type=click.Choice(["api", "max"]),
+    help="Authentication mode: 'api' (ANTHROPIC_API_KEY) or 'max' (Claude Max subscription)",
+)
+def init_cmd(db_path: Path, auth: str | None) -> None:
     """Initialize the BentWookie database and directories.
 
     \b
     Examples:
       bw init
+      bw init --auth max
+      bw init --auth api
       bw init --db-path ./mydata/bw.db
     """
     from .db.connection import set_db_path
+    from .settings import AUTH_MODE_API, AUTH_MODE_MAX, save_settings, load_settings
 
     # Set custom database path if provided
     if db_path != Path("data/bentwookie.db"):
@@ -113,8 +121,29 @@ def init_cmd(db_path: Path) -> None:
     # Initialize database
     init_db()
 
-    click.echo(f"Database initialized at: {db_path}")
+    # Handle auth mode
+    if auth is None:
+        # Interactive prompt
+        click.echo("\nAuthentication mode:")
+        click.echo("  1. max - Claude Max subscription (web auth, no API key needed)")
+        click.echo("  2. api - API key (requires ANTHROPIC_API_KEY env var)")
+        choice = click.prompt("Select auth mode", type=click.Choice(["max", "api"]), default="max")
+        auth = choice
+
+    # Save settings
+    settings = load_settings()
+    settings["auth_mode"] = auth
+    save_settings(settings)
+
+    click.echo(f"\nDatabase initialized at: {db_path}")
+    click.echo(f"Auth mode: {auth}")
     click.echo("Created directories: data/, docs/, logs/")
+
+    if auth == AUTH_MODE_API:
+        click.echo("\nNote: Set ANTHROPIC_API_KEY environment variable before running the daemon.")
+    else:
+        click.echo("\nNote: Using Claude Max subscription. Ensure you've run 'claude' and authenticated.")
+
     click.echo("\nNext steps:")
     click.echo("  bw project create <name>  - Create a project")
     click.echo("  bw request create <proj>  - Create a request")
@@ -597,6 +626,44 @@ def web_cmd(host: str, port: int, debug: bool) -> None:
         app.run(host=host, port=port, debug=debug)
     except ImportError:
         raise click.ClickException("Flask is required. Install with: pip install flask")
+
+
+# =============================================================================
+# Config Command
+# =============================================================================
+
+
+@main.command("config")
+@click.option("--auth", type=click.Choice(["api", "max"]), help="Set auth mode")
+@click.option("--show", is_flag=True, help="Show current settings")
+def config_cmd(auth: str | None, show: bool) -> None:
+    """View or update configuration.
+
+    \b
+    Examples:
+      bw config --show
+      bw config --auth max
+      bw config --auth api
+    """
+    from .settings import load_settings, save_settings
+
+    settings = load_settings()
+
+    if auth:
+        settings["auth_mode"] = auth
+        save_settings(settings)
+        click.echo(f"Auth mode set to: {auth}")
+        if auth == "api":
+            click.echo("Note: Ensure ANTHROPIC_API_KEY is set.")
+        else:
+            click.echo("Note: Using Claude Max subscription (web auth).")
+        return
+
+    if show or (not auth):
+        click.echo("\nCurrent Settings:")
+        click.echo("-" * 30)
+        for key, value in settings.items():
+            click.echo(f"  {key}: {value}")
 
 
 # =============================================================================
