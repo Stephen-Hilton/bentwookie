@@ -1,31 +1,42 @@
 # BentWookie
 
-> "I bent my Wookie." -- Ralph Wiggum
+> "I bent my wookie."  - Ralph Wiggum
 
-An AI coding loop workflow manager that guides development requests through phases from planning to deployment, powered by the Claude Agent SDK.
+BentWookie - AI coding loop that manages development requests through various phases using the Claude Agent SDK for execution, using centrally managed deployment and infrastructure configurations.
 
 ## QuickStart
 
+### Using Claude Max (Recommended)
+
 ```bash
 # Install
-git clone https://github.com/bentwookie/bentwookie.git
+git clone -b AIGen02 https://github.com/bentwookie/bentwookie.git
 cd bentwookie
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 
-# Set your API key
-export ANTHROPIC_API_KEY="your-key-here"
+# Initialize with Claude Max subscription
+bw init --auth max
 
-# Initialize and create your first project
-bw init
+# Create your first project and request
 bw project create myapp --desc "My application"
 bw request create myapp -n "Add login" -m "Implement user authentication"
 
-# Start processing (foreground mode)
+# Start processing
 bw loop start --foreground
+```
 
-# Or use the web UI
-bw web
+### Using API Key
+
+```bash
+# Initialize with API key mode
+bw init --auth api
+
+# Set your API key
+export ANTHROPIC_API_KEY="your-key-here"
+
+# Start processing
+bw loop start --foreground
 ```
 
 ## Overview
@@ -38,12 +49,13 @@ BentWookie v2 provides:
 - **CLI Interface**: Full control via command line
 - **Web UI**: Browser-based dashboard for managing projects and requests
 - **Daemon Mode**: Background processing of queued requests
+- **Rate Limit Handling**: Automatic retry with backoff on API limits
 
 ## Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/bentwookie/bentwookie.git
+git clone -b AIGen02 https://github.com/bentwookie/bentwookie.git
 cd bentwookie
 
 # Create virtual environment (recommended)
@@ -64,19 +76,66 @@ pip install -e ".[dev]"
 - Claude Agent SDK (`claude-agent-sdk`) - installed automatically
 - Flask (for web UI) - installed automatically
 
-### Environment Variables
+## Authentication
 
-| Variable | Description |
-|----------|-------------|
-| `ANTHROPIC_API_KEY` | **Required** - API key for Claude (get one at [console.anthropic.com](https://console.anthropic.com)) |
+BentWookie supports two authentication modes:
+
+| Mode | Description | Setup |
+|------|-------------|-------|
+| `max` | Claude Max subscription | Authenticate via `claude` CLI (web auth) |
+| `api` | API key | Set `ANTHROPIC_API_KEY` environment variable |
+
+### Claude Max (Recommended)
+
+Uses your Claude Max subscription via the Claude Code CLI's web authentication:
+
+```bash
+# Ensure you're authenticated with Claude CLI
+claude --version
+
+# Initialize BentWookie with max mode
+bw init --auth max
+```
+
+### API Key
+
+Uses the Anthropic API directly (requires credits):
+
+```bash
+# Initialize with API mode
+bw init --auth api
+
+# Set your API key
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+Get an API key at [console.anthropic.com](https://console.anthropic.com)
+
+### Switching Modes
+
+```bash
+bw config --auth max    # Switch to Claude Max
+bw config --auth api    # Switch to API key
+bw config --show        # View current settings
+```
 
 ## CLI Commands
 
 ### Initialization
 
 ```bash
-bw init                      # Initialize database and directories
-bw init --db-path ./my.db    # Use custom database path
+bw init                      # Initialize (prompts for auth mode)
+bw init --auth max           # Use Claude Max subscription
+bw init --auth api           # Use API key
+bw init --db-path ./my.db    # Custom database path
+```
+
+### Configuration
+
+```bash
+bw config --show             # View current settings
+bw config --auth max         # Switch to Claude Max mode
+bw config --auth api         # Switch to API key mode
 ```
 
 ### Project Management
@@ -166,6 +225,15 @@ Requests progress through these phases automatically:
 - `bug_fix` - Fix for existing bug
 - `enhancement` - Improvement to existing feature
 
+### Rate Limit Handling
+
+BentWookie automatically handles API rate limits:
+
+- Detects rate limit errors (429, "too many requests", etc.)
+- Keeps request as `tbd` so it gets retried (not marked as `err`)
+- Pauses daemon for 60 seconds before retrying
+- Logs warnings instead of errors for rate limits
+
 ## Web UI
 
 The web interface provides:
@@ -202,6 +270,7 @@ src/bentwookie/
 ├── cli.py                # CLI commands (Click)
 ├── constants.py          # Configuration constants
 ├── models.py             # Data models (Project, Request, etc.)
+├── settings.py           # Settings management (auth mode, etc.)
 ├── logging_util.py       # Logging configuration
 ├── db/
 │   ├── __init__.py       # Database module exports
@@ -227,7 +296,9 @@ src/bentwookie/
         ├── verify.md
         └── document.md
 
-data/                     # SQLite database
+data/
+├── bentwookie.db         # SQLite database
+└── settings.json         # Configuration settings
 docs/                     # Generated documentation
 logs/                     # Log files
 ```
@@ -278,6 +349,19 @@ mypy src/bentwookie/
 ```
 
 ## Configuration
+
+### Settings File
+
+Settings are stored in `data/settings.json`:
+
+```json
+{
+  "auth_mode": "max",
+  "model": "claude-sonnet-4-20250514",
+  "max_turns": 50,
+  "poll_interval": 30
+}
+```
 
 ### Log Path Placeholders
 

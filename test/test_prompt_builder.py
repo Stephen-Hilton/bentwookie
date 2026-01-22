@@ -3,6 +3,7 @@
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -172,3 +173,82 @@ class TestSanitizeLoopName:
         result = sanitize_loop_name("!@#$%")
         assert len(result) == 12
         assert result.isalnum()
+
+
+class TestWhitespacePrompt:
+    """Tests for whitespace_prompt function."""
+
+    @pytest.mark.skip(reason="whitespace functions may call subprocesses that hang in CI")
+    def test_whitespace_prompt_returns_string(self):
+        """Test whitespace_prompt returns a string."""
+        from bentwookie.prompt_builder import whitespace_prompt
+
+        result = whitespace_prompt()
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    @pytest.mark.skip(reason="whitespace functions may call subprocesses that hang in CI")
+    def test_whitespace_prompt_contains_results(self):
+        """Test whitespace_prompt includes function results."""
+        from bentwookie.prompt_builder import whitespace_prompt
+
+        result = whitespace_prompt()
+        # Should contain some indication of what was run
+        assert len(result) > 10
+
+
+class TestBuildFinalPrompt:
+    """Tests for build_final_prompt function."""
+
+    def test_build_final_prompt_with_task(self, temp_tasks_dir, sample_task):
+        """Test building prompt from task dict."""
+        from bentwookie.prompt_builder import build_final_prompt
+        from bentwookie.core import create_task_file
+
+        # Create a task file
+        task_path = create_task_file("Test Feature", stage="1plan")
+        task = {"name": "Test Feature", "stage": "1plan", "file_path": task_path}
+
+        result = build_final_prompt(task)
+        assert isinstance(result, str)
+
+    def test_build_final_prompt_with_path(self, temp_tasks_dir):
+        """Test building prompt from file path."""
+        from bentwookie.prompt_builder import build_final_prompt
+        from bentwookie.core import create_task_file
+
+        # Create a task file
+        task_path = create_task_file("Path Test", stage="1plan")
+
+        result = build_final_prompt(task_path)
+        assert isinstance(result, str)
+
+    def test_build_final_prompt_with_string_path(self, temp_tasks_dir):
+        """Test building prompt from string path."""
+        from bentwookie.prompt_builder import build_final_prompt
+        from bentwookie.core import create_task_file
+
+        # Create a task file
+        task_path = create_task_file("String Path Test", stage="1plan")
+
+        result = build_final_prompt(str(task_path))
+        assert isinstance(result, str)
+
+
+class TestNextPrompt:
+    """Tests for next_prompt function."""
+
+    def test_next_prompt_returns_string(self, temp_tasks_dir):
+        """Test next_prompt returns a string."""
+        from bentwookie.prompt_builder import next_prompt
+
+        # Without any tasks, should return whitespace prompt
+        result = next_prompt()
+        assert isinstance(result, str)
+
+    def test_next_prompt_with_loop_name(self, temp_tasks_dir):
+        """Test next_prompt with loop name."""
+        from bentwookie.prompt_builder import next_prompt
+
+        result = next_prompt(loop_name="test_loop")
+        assert isinstance(result, str)

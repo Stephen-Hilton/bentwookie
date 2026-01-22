@@ -176,8 +176,9 @@ DAEMON_MAX_TURNS = 50        # max Claude SDK turns per phase
 # =============================================================================
 
 DEFAULT_DB_PATH = "data/bentwookie.db"
-DEFAULT_DOCS_PATH = "docs"
+DEFAULT_DOCS_PATH = "data/docs"
 DEFAULT_LOGS_PATTERN = "logs/{loopname}_{today}.log"
+DEFAULT_DOC_RETENTION_DAYS = 30  # Auto-cleanup docs older than this
 
 # =============================================================================
 # Claude SDK Settings
@@ -268,32 +269,37 @@ TIMEOUT_IN_PROGRESS = 24 * 60 * 60  # 24 hours
 WHITESPACE_SLEEP = 600  # 10 minutes
 RACE_CONDITION_SLEEP = 5  # seconds
 
-# Infrastructure options for wizard (deprecated)
+# Infrastructure options for wizard (Local is default - first in each list)
 COMPUTE_OPTIONS = [
-    "Don't Care",
+    "Local",
     "AWS Lambda",
     "AWS EC2",
-    "Local",
+    "GCP Cloud Functions",
+    "Azure Functions",
+    "Container (Docker)",
 ]
 
 STORAGE_OPTIONS = [
-    "Don't Care",
+    "Local",
     "AWS AuroraDB",
     "AWS DynamoDB",
     "AWS S3",
-    "Local",
+    "GCP Cloud SQL",
+    "Azure SQL",
 ]
 
 QUEUE_OPTIONS = [
-    "Don't Care",
+    "Local",
     "AWS Kinesis",
     "AWS SQS",
-    "Local",
+    "GCP Pub/Sub",
+    "Azure Service Bus",
 ]
 
 ACCESS_OPTIONS = [
-    "Don't Care",
-    "AWS API Gateway",
-    "Direct",
     "Local",
+    "AWS API Gateway",
+    "GCP API Gateway",
+    "Azure API Management",
+    "Direct",
 ]

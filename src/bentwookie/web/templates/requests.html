@@ -3,11 +3,18 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Requests</h1>
-    <a href="{{ url_for('request_new') }}" class="btn btn-primary">New Request</a>
+    <h1>
+        <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
+        Requests
+    </h1>
+    <a href="{{ url_for('request_new') }}" class="btn btn-primary">
+        <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
+        New Request
+    </a>
 </div>
 
 <form method="GET" class="filter-form">
+    <img src="{{ url_for('static', filename='icons/ui_filter.png') }}" alt="" style="height: 32px;">
     <div class="filter-group">
         <label for="project">Project</label>
         <select id="project" name="project">
@@ -22,7 +29,7 @@
         <label for="status">Status</label>
         <select id="status" name="status">
             <option value="">All Statuses</option>
-            {% for s in VALID_STATUSES %}
+            {% for s in V2_STATUSES %}
             <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ STATUS_NAMES.get(s, s) }}</option>
             {% endfor %}
         </select>
@@ -38,7 +45,10 @@
         </select>
     </div>
 
-    <button type="submit" class="btn">Filter</button>
+    <button type="submit" class="btn btn-primary">
+        <img src="{{ url_for('static', filename='icons/ui_filterrecords.png') }}" alt="">
+        Filter
+    </button>
     <a href="{{ url_for('requests_list') }}" class="btn">Clear</a>
 </form>
 
@@ -67,7 +77,14 @@
             <td><span class="badge badge-{{ r.reqstatus }}">{{ STATUS_NAMES.get(r.reqstatus, r.reqstatus) }}</span></td>
             <td>{{ r.reqpriority }}</td>
             <td>
-                <a href="{{ url_for('request_view', reqid=r.reqid) }}" class="btn btn-sm">View</a>
+                <a href="{{ url_for('request_view', reqid=r.reqid) }}" class="btn btn-sm">
+                    <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
+                    View
+                </a>
+                <a href="{{ url_for('request_edit', reqid=r.reqid) }}" class="btn btn-sm">
+                    <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
+                    Edit
+                </a>
             </td>
         </tr>
         {% endfor %}

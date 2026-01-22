@@ -2,11 +2,22 @@
 {% block title_suffix %} - {% if req %}Edit{% else %}New{% endif %} Request{% endblock %}
 
 {% block content %}
-<h1>{% if req %}Edit{% else %}New{% endif %} Request</h1>
+<div class="page-header">
+    <h1>
+        <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
+        {% if req %}Edit{% else %}New{% endif %} Request
+    </h1>
+</div>
 
 <form method="POST" class="form">
     <div class="form-group">
         <label for="project">Project *</label>
+        {% if edit_mode %}
+        {# In edit mode, project is locked - show as text and submit hidden field #}
+        <input type="hidden" name="project" value="{{ req.prjid }}">
+        <input type="text" value="{{ projects|selectattr('prjid', 'eq', req.prjid)|map(attribute='prjname')|first }}" disabled class="form-control-disabled">
+        <small class="help-text">Project cannot be changed after creation</small>
+        {% else %}
         <select id="project" name="project" required>
             <option value="">Select a project...</option>
             {% for p in projects %}
@@ -17,6 +28,7 @@
             </option>
             {% endfor %}
         </select>
+        {% endif %}
     </div>
 
     <div class="form-group">
@@ -55,7 +67,9 @@
     </div>
 
     <div class="button-group">
-        <button type="submit" class="btn btn-primary">{% if req %}Update{% else %}Create{% endif %}</button>
+        <button type="submit" class="btn btn-primary">
+            {% if req %}Update{% else %}Create{% endif %}
+        </button>
         <a href="{{ url_for('requests_list') }}" class="btn">Cancel</a>
     </div>
 </form>

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bentwookie"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI coding loop workflow manager with SQLite state and Claude Agent SDK integration"
 readme = "README.md"
 license = {text = "MIT"}
@@ -60,6 +60,8 @@ bentwookie = [
     "db/*.sql",
     "web/templates/*.html",
     "web/static/*.css",
+    "web/static/*.png",
+    "web/static/icons/*.png",
 ]
 
 [tool.black]

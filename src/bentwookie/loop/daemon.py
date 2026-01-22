@@ -11,6 +11,8 @@ from ..constants import DAEMON_POLL_INTERVAL
 from ..db import init_db, queries
 from ..logging_util import get_logger, init_logger
 from ..models import DaemonStatus
+from ..settings import get_max_iterations, get_poll_interval, is_loop_paused
+from .phases import cleanup_old_docs
 from .processor import get_rate_limit_wait, is_rate_limited, process_request
 
 
@@ -57,8 +59,34 @@ class BentWookieDaemon:
         # Ensure database is initialized
         init_db()
 
+        # Clean up old docs at startup
+        cleanup_old_docs()
+
         while self.running:
             try:
+                # Reload poll interval dynamically from settings
+                current_poll = get_poll_interval()
+                if current_poll != self.poll_interval:
+                    self.logger.info(f"Poll interval changed: {self.poll_interval}s -> {current_poll}s")
+                    self.poll_interval = current_poll
+
+                # Check if loop is paused
+                if is_loop_paused():
+                    if not self.status.paused:
+                        self.logger.info("Loop paused")
+                        self.status.paused = True
+                    await asyncio.sleep(self.poll_interval)
+                    continue
+                elif self.status.paused:
+                    self.logger.info("Loop resumed")
+                    self.status.paused = False
+
+                # Check max iterations
+                max_iter = get_max_iterations()
+                if max_iter > 0 and self.status.iteration_count >= max_iter:
+                    self.logger.info(f"Max iterations ({max_iter}) reached. Stopping daemon.")
+                    break
+
                 # Check if rate limited
                 if is_rate_limited():
                     wait_time = get_rate_limit_wait()
@@ -80,6 +108,9 @@ class BentWookieDaemon:
                     )
 
                     success = await process_request(request)
+
+                    # Track iteration count
+                    self.status.iteration_count += 1
 
                     if success:
                         self.status.requests_processed += 1
@@ -112,6 +143,10 @@ class BentWookieDaemon:
         self.running = False
         self.status.running = False
 
+    def stop(self) -> None:
+        """Stop the daemon gracefully."""
+        self._shutdown()
+
     def _cleanup(self) -> None:
         """Clean up resources."""
         self.logger.info(
@@ -137,7 +172,7 @@ def start_daemon(
     log_path: str | None = None,
     loop_name: str = "bwloop",
     foreground: bool = True,
-) -> None:
+) -> bool:
     """Start the BentWookie daemon.
 
     Args:
@@ -145,8 +180,17 @@ def start_daemon(
         log_path: Path pattern for log file.
         loop_name: Name identifier for this loop.
         foreground: If True, run in foreground; if False, daemonize.
+
+    Returns:
+        True if daemon started successfully, False if already running.
     """
     global _daemon
+
+    # Check if daemon is already running
+    if is_daemon_running():
+        pid = read_pid_file()
+        print(f"Daemon is already running with PID {pid}")
+        return False
 
     if not foreground:
         # Fork to background
@@ -179,13 +223,36 @@ def start_daemon(
     )
 
     asyncio.run(_daemon.run())
+    return True
 
 
-def stop_daemon() -> None:
-    """Stop the running daemon."""
+def stop_daemon() -> bool:
+    """Stop the running daemon.
+
+    Returns:
+        True if daemon was stopped, False if not running.
+    """
     global _daemon
+
+    # Check if we have a local daemon instance
     if _daemon:
         _daemon._shutdown()
+        return True
+
+    # Check if external daemon process is running
+    if not is_daemon_running():
+        return False
+
+    pid = read_pid_file()
+    if pid:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            remove_pid_file()
+            return True
+        except OSError:
+            return False
+
+    return False
 
 
 def get_daemon_status() -> DaemonStatus | None:

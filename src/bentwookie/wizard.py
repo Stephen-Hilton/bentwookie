@@ -1,20 +1,60 @@
-"""Planning wizard for creating new BentWookie tasks."""
+"""Planning wizard for creating new BentWookie requests (v2 - SQLite)."""
 
 from typing import Any
 
 import questionary
 from questionary import Style
 
-from .config import get_config
 from .constants import (
+    ACCESS_OPTIONS,
+    COMPUTE_OPTIONS,
     DEFAULT_PRIORITY,
     PRIORITY_MAX,
     PRIORITY_MIN,
-    PROJECT_PHASES,
-    VALID_CHANGE_TYPES,
+    QUEUE_OPTIONS,
+    STORAGE_OPTIONS,
+    VALID_INFRA_TYPES,
+    VALID_PROJECT_PHASES,
+    VALID_PROVIDERS,
+    VALID_REQUEST_TYPES,
+    VALID_VERSIONS,
 )
-from .core import Task, create_task_file, get_stage_resources
-from .exceptions import WizardError
+from .db import (
+    add_infrastructure,
+    add_request_infrastructure,
+    create_project,
+    create_request,
+    get_infra_options_by_type,
+    get_project,
+    get_project_by_name,
+    get_project_infrastructure,
+    init_db,
+    list_projects,
+)
+
+
+def _get_infra_options(opttype: str) -> list[str]:
+    """Get infrastructure options for a type, with fallback to constants.
+
+    Args:
+        opttype: Option type (compute, storage, queue, access).
+
+    Returns:
+        List of option names.
+    """
+    # Try to get from database first
+    options = get_infra_options_by_type(opttype)
+    if options:
+        return options
+
+    # Fall back to hardcoded constants
+    fallbacks = {
+        "compute": COMPUTE_OPTIONS,
+        "storage": STORAGE_OPTIONS,
+        "queue": QUEUE_OPTIONS,
+        "access": ACCESS_OPTIONS,
+    }
+    return fallbacks.get(opttype, ["Local"])
 
 # Custom style for the wizard
 WIZARD_STYLE = Style([
@@ -30,10 +70,10 @@ WIZARD_STYLE = Style([
 
 
 class PlanningWizard:
-    """Interactive wizard for creating new task plans.
+    """Interactive wizard for creating new requests (v2 - SQLite).
 
     Guides users through a series of questions to create a properly
-    formatted task file in the 1plan/ directory.
+    structured request in the database.
     """
 
     def __init__(self, feature_name: str | None = None):
@@ -42,213 +82,153 @@ class PlanningWizard:
         Args:
             feature_name: Optional pre-set feature name
         """
-        self.config = get_config()
+        # Ensure database is initialized
+        init_db()
+
         self._feature_name = feature_name
         self._answers: dict[str, Any] = {}
         self._is_bugfix = False
+        self._project: dict | None = None
 
-    def _get_options(self, category: str, setting_key: str) -> list[str]:
-        """Get options for a category, with last-selected first.
-
-        Args:
-            category: Options category (e.g., 'change_type', 'phase')
-            setting_key: Key in settings.yaml
+    def _ask_project(self) -> dict:
+        """Ask to select or create a project.
 
         Returns:
-            List of options, with most recent first
+            Project dict
         """
-        settings = self.config.load_settings()
+        projects = list_projects()
 
-        # Get options from settings
-        options = settings.get(category, [])
-        if not options:
-            # Use defaults
-            if category == "change_type":
-                options = VALID_CHANGE_TYPES.copy()
-            elif category == "phase":
-                options = PROJECT_PHASES.copy()
+        if projects:
+            choices = [
+                {"name": f"{p['prjname']} ({p['prjversion']})", "value": p["prjid"]}
+                for p in projects
+            ]
+            # Use a special marker value instead of None to avoid confusion
+            choices.append({"name": "[Create new project]", "value": "__NEW__"})
 
-        # Get last selected
-        last_selected = self.config.get_last_selected(setting_key)
+            project_id = questionary.select(
+                "Select a project:",
+                choices=choices,
+                style=WIZARD_STYLE,
+            ).ask()
 
-        # Reorder to put last selected first
-        if last_selected and last_selected in options:
-            options = [last_selected] + [o for o in options if o != last_selected]
+            if project_id == "__NEW__":
+                # User selected "[Create new project]"
+                return self._create_project()
+            elif project_id is not None:
+                self._project = get_project(project_id)
+                return self._project  # type: ignore
+            else:
+                # User cancelled (Ctrl+C or Escape)
+                raise ValueError("Project selection cancelled")
+        else:
+            print("\nNo projects found. Let's create one.")
+            return self._create_project()
 
-        # Limit to 9 options + Other
-        if len(options) > 9:
-            options = options[:9]
-
-        return options
-
-    def _get_infrastructure_options(self, category: str) -> list[str]:
-        """Get infrastructure options for a category.
-
-        Args:
-            category: Infrastructure category (compute, storage, queue, access)
+    def _create_project(self) -> dict:
+        """Create a new project interactively.
 
         Returns:
-            List of options
+            Created project dict
         """
-        options = self.config.get_infrastructure_options(category)
+        name = questionary.text(
+            "Project name:",
+            style=WIZARD_STYLE,
+        ).ask()
 
-        if not options:
-            # Use defaults from constants
-            from .constants import (
-                ACCESS_OPTIONS,
-                COMPUTE_OPTIONS,
-                QUEUE_OPTIONS,
-                STORAGE_OPTIONS,
-            )
-            defaults = {
-                "compute": COMPUTE_OPTIONS,
-                "storage": STORAGE_OPTIONS,
-                "queue": QUEUE_OPTIONS,
-                "access": ACCESS_OPTIONS,
-            }
-            options = defaults.get(category, ["Don't Care"])
+        if not name:
+            raise ValueError("Project name is required")
 
-        # Get last selected
-        last_selected = self.config.get_last_selected(f"infrastructure.{category}")
+        version = questionary.select(
+            "Project version:",
+            choices=VALID_VERSIONS,
+            style=WIZARD_STYLE,
+        ).ask()
 
-        # Reorder to put last selected first
-        if last_selected and last_selected in options:
-            options = [last_selected] + [o for o in options if o != last_selected]
+        phase = questionary.select(
+            "Project phase:",
+            choices=VALID_PROJECT_PHASES,
+            style=WIZARD_STYLE,
+        ).ask()
 
-        # Limit to 9 options
-        if len(options) > 9:
-            options = options[:9]
+        desc = questionary.text(
+            "Project description (optional):",
+            style=WIZARD_STYLE,
+        ).ask()
 
-        return options
+        codedir = questionary.text(
+            "Code directory (optional, press Enter to skip):",
+            default="",
+            style=WIZARD_STYLE,
+        ).ask()
+
+        prjid = create_project(
+            prjname=name,
+            prjversion=version or "poc",
+            prjphase=phase or "dev",
+            prjdesc=desc or None,
+            prjcodedir=codedir or None,
+        )
+
+        self._project = get_project(prjid)
+        print(f"\nProject '{name}' created (ID: {prjid})")
+
+        return self._project  # type: ignore
 
     def _ask_name(self) -> str:
-        """Ask for the feature name (Q1).
+        """Ask for the request name.
 
         Returns:
-            Feature name
+            Request name
         """
         default = self._feature_name or ""
 
         name = questionary.text(
-            "Confirm the name of your change:",
+            "Request name:",
             default=default,
             style=WIZARD_STYLE,
         ).ask()
 
         if not name:
-            raise WizardError("name", "Feature name is required")
+            raise ValueError("Request name is required")
 
         self._answers["name"] = name
         return name
 
-    def _ask_source_location(self) -> str:
-        """Ask for source code location (Q1.1).
-
-        Returns:
-            Source code path
-        """
-        last_selected = self.config.get_last_selected("project_code_rootpath")
-        default = last_selected or "./"
-
-        location = questionary.text(
-            "Confirm the location of the source code to modify:",
-            default=default,
-            style=WIZARD_STYLE,
-        ).ask()
-
-        if not location:
-            location = "./"
-
-        self._answers["project_root"] = location
-        self.config.set_last_selected("project_code_rootpath", location)
-        return location
-
     def _ask_change_type(self) -> str:
-        """Ask for change type (Q2).
+        """Ask for change type.
 
         Returns:
             Change type
         """
-        options = self._get_options("change_type", "change_type")
-        options.append("Other")
+        type_choices = [
+            {"name": "New Feature", "value": "new_feature"},
+            {"name": "Bug Fix", "value": "bug_fix"},
+            {"name": "Enhancement", "value": "enhancement"},
+        ]
 
         change_type = questionary.select(
-            "Is this request a...",
-            choices=options,
+            "What type of change is this?",
+            choices=type_choices,
             style=WIZARD_STYLE,
         ).ask()
-
-        if change_type == "Other":
-            change_type = questionary.text(
-                "Enter the change type:",
-                style=WIZARD_STYLE,
-            ).ask()
-            if change_type:
-                # Save to settings for future use
-                settings = self.config.load_settings()
-                types = settings.get("change_type", [])
-                if change_type not in types:
-                    types.append(change_type)
-                    settings["change_type"] = types
-                    self.config.save_settings(settings)
 
         if not change_type:
-            raise WizardError("change_type", "Change type is required")
+            change_type = "new_feature"
 
         self._answers["change_type"] = change_type
-        self._is_bugfix = change_type.lower() == "bug-fix"
-        self.config.set_last_selected("change_type", change_type)
+        self._is_bugfix = change_type == "bug_fix"
         return change_type
 
-    def _ask_project_phase(self) -> str:
-        """Ask for project phase (Q3).
-
-        Returns:
-            Project phase
-        """
-        options = self._get_options("phase", "phase")
-        options.append("Other")
-
-        phase = questionary.select(
-            "Project phase is...",
-            choices=options,
-            style=WIZARD_STYLE,
-        ).ask()
-
-        if phase == "Other":
-            phase = questionary.text(
-                "Enter the project phase:",
-                style=WIZARD_STYLE,
-            ).ask()
-            if phase:
-                # Save to settings
-                settings = self.config.load_settings()
-                phases = settings.get("phase", [])
-                if phase not in phases:
-                    phases.append(phase)
-                    settings["phase"] = phases
-                    self.config.save_settings(settings)
-
-        if not phase:
-            phase = "MVP"
-
-        self._answers["project_phase"] = phase
-        self.config.set_last_selected("phase", phase)
-        return phase
-
     def _ask_priority(self) -> int:
-        """Ask for priority (Q4).
+        """Ask for priority.
 
         Returns:
             Priority (1-10)
         """
-        last_selected = self.config.get_last_selected("priority")
-        default = str(last_selected) if last_selected else str(DEFAULT_PRIORITY)
-
         priority_str = questionary.text(
-            f"Between {PRIORITY_MIN} and {PRIORITY_MAX}, what is the priority? "
-            f"({PRIORITY_MIN}=lowest, {PRIORITY_MAX}=critical):",
-            default=default,
+            f"Priority ({PRIORITY_MIN}-{PRIORITY_MAX}, {PRIORITY_MIN}=lowest, {PRIORITY_MAX}=critical):",
+            default=str(DEFAULT_PRIORITY),
             style=WIZARD_STYLE,
         ).ask()
 
@@ -259,142 +239,131 @@ class PlanningWizard:
             priority = DEFAULT_PRIORITY
 
         self._answers["priority"] = priority
-        self.config.set_last_selected("priority", priority)
         return priority
 
-    def _ask_compute(self) -> str:
-        """Ask for compute infrastructure (Q5).
+    def _ask_codedir(self) -> str | None:
+        """Ask for code directory (request-level override).
 
         Returns:
-            Compute option
+            Code directory path or None
         """
-        options = self._get_infrastructure_options("compute")
-        options.append("Other")
+        # Show project's codedir as context
+        project_codedir = self._project.get("prjcodedir") if self._project else None
+        if project_codedir:
+            print(f"\n(Project default code dir: {project_codedir})")
 
-        compute = questionary.select(
-            "Infrastructure: What COMPUTE stack do you want?",
-            choices=options,
+        codedir = questionary.text(
+            "Code directory override (optional, Enter to use project default):",
+            default="",
             style=WIZARD_STYLE,
         ).ask()
 
-        if compute == "Other":
-            compute = questionary.text(
-                "Enter the compute option:",
-                style=WIZARD_STYLE,
-            ).ask()
-            if compute:
-                self._add_infrastructure_option("compute", compute)
+        self._answers["codedir"] = codedir or None
+        return codedir or None
 
-        self._answers.setdefault("infrastructure", {})["compute"] = compute
-        self.config.set_last_selected("infrastructure.compute", compute)
-        return compute or "Don't Care"
-
-    def _ask_storage(self) -> str:
-        """Ask for storage infrastructure (Q6).
-
-        Returns:
-            Storage option
-        """
-        options = self._get_infrastructure_options("storage")
-        options.append("Other")
-
-        storage = questionary.select(
-            "Infrastructure: What STORAGE stack do you want?",
-            choices=options,
-            style=WIZARD_STYLE,
-        ).ask()
-
-        if storage == "Other":
-            storage = questionary.text(
-                "Enter the storage option:",
-                style=WIZARD_STYLE,
-            ).ask()
-            if storage:
-                self._add_infrastructure_option("storage", storage)
-
-        self._answers.setdefault("infrastructure", {})["storage"] = storage
-        self.config.set_last_selected("infrastructure.storage", storage)
-        return storage or "Don't Care"
-
-    def _ask_queue(self) -> str:
-        """Ask for queue infrastructure (Q7).
-
-        Returns:
-            Queue option
-        """
-        options = self._get_infrastructure_options("queue")
-        options.append("Other")
-
-        queue = questionary.select(
-            "Infrastructure: What QUEUE stack do you want?",
-            choices=options,
-            style=WIZARD_STYLE,
-        ).ask()
-
-        if queue == "Other":
-            queue = questionary.text(
-                "Enter the queue option:",
-                style=WIZARD_STYLE,
-            ).ask()
-            if queue:
-                self._add_infrastructure_option("queue", queue)
-
-        self._answers.setdefault("infrastructure", {})["queue"] = queue
-        self.config.set_last_selected("infrastructure.queue", queue)
-        return queue or "Don't Care"
-
-    def _ask_access(self) -> str:
-        """Ask for access infrastructure (Q8).
-
-        Returns:
-            Access option
-        """
-        options = self._get_infrastructure_options("access")
-        options.append("Other")
-
-        access = questionary.select(
-            "Infrastructure: What ACCESS path do you want?",
-            choices=options,
-            style=WIZARD_STYLE,
-        ).ask()
-
-        if access == "Other":
-            access = questionary.text(
-                "Enter the access option:",
-                style=WIZARD_STYLE,
-            ).ask()
-            if access:
-                self._add_infrastructure_option("access", access)
-
-        self._answers.setdefault("infrastructure", {})["access"] = access
-        self.config.set_last_selected("infrastructure.access", access)
-        return access or "Don't Care"
-
-    def _add_infrastructure_option(self, category: str, option: str) -> None:
-        """Add a new infrastructure option to settings.
+    def _ask_infrastructure(self, category: str, options: list[str], prompt: str) -> dict | None:
+        """Ask for infrastructure preference.
 
         Args:
-            category: Infrastructure category
-            option: New option to add
-        """
-        settings = self.config.load_settings()
-        infra = settings.get("infrastructure", {})
-        options = infra.get(category, [])
-        if option not in options:
-            options.append(option)
-            infra[category] = options
-            settings["infrastructure"] = infra
-            self.config.save_settings(settings)
-
-    def _ask_description(self) -> str:
-        """Ask for task description (Q9).
+            category: Infrastructure category (compute, storage, queue, access)
+            options: List of options to choose from
+            prompt: Question prompt
 
         Returns:
-            Task description
+            Infrastructure dict or None if skipped
         """
-        print("\nLast Step! Type a few sentences describing this request.")
-        print("For example: 'There is a bug in feature X that returns 1 more than expected.'")
-        print("\nThis information will be handed off to the Claude Code Planning Agent.\n")
+        choices = options + ["Don't Care", "Other"]
+
+        choice = questionary.select(
+            prompt,
+            choices=choices,
+            style=WIZARD_STYLE,
+        ).ask()
+
+        if choice == "Don't Care" or not choice:
+            return None
+
+        if choice == "Other":
+            choice = questionary.text(
+                f"Enter {category} option:",
+                style=WIZARD_STYLE,
+            ).ask()
+            if not choice:
+                return None
+
+        # Determine provider from choice
+        provider = "local"
+        if "AWS" in choice or "aws" in choice.lower():
+            provider = "aws"
+        elif "GCP" in choice or "gcp" in choice.lower() or "Google" in choice:
+            provider = "gcp"
+        elif "Azure" in choice or "azure" in choice.lower():
+            provider = "azure"
+        elif "Container" in choice or "Docker" in choice or "container" in choice.lower():
+            provider = "container"
+
+        return {
+            "inftype": category,
+            "infprovider": provider,
+            "infval": choice,
+            "infnote": None,
+        }
+
+    def _ask_all_infrastructure(self) -> list[dict]:
+        """Ask for all infrastructure preferences.
+
+        Returns:
+            List of infrastructure dicts
+        """
+        print("\n--- Infrastructure Preferences ---")
+        print("(Skip infrastructure questions for bug fixes)")
+
+        infrastructure = []
+
+        compute = self._ask_infrastructure(
+            "compute",
+            _get_infra_options("compute"),
+            "What COMPUTE stack do you want?",
+        )
+        if compute:
+            infrastructure.append(compute)
+
+        storage = self._ask_infrastructure(
+            "storage",
+            _get_infra_options("storage"),
+            "What STORAGE stack do you want?",
+        )
+        if storage:
+            infrastructure.append(storage)
+
+        queue = self._ask_infrastructure(
+            "queue",
+            _get_infra_options("queue"),
+            "What QUEUE stack do you want?",
+        )
+        if queue:
+            infrastructure.append(queue)
+
+        access = self._ask_infrastructure(
+            "access",
+            _get_infra_options("access"),
+            "What ACCESS path do you want?",
+        )
+        if access:
+            infrastructure.append(access)
+
+        self._answers["infrastructure"] = infrastructure
+        return infrastructure
+
+    def _ask_description(self) -> str:
+        """Ask for request description/prompt.
+
+        Returns:
+            Description text
+        """
+        print("\n--- Request Description ---")
+        print("Describe what you want done. Be specific about the changes needed.")
+        print("This will be used as the prompt for the AI to work on.\n")
 
         description = questionary.text(
             "Description:",
@@ -417,119 +386,116 @@ class PlanningWizard:
         print("\n" + "=" * 60)
         print("Let's verify everything looks right!")
         print("=" * 60)
-        print(f"\n- Name:     {self._answers.get('name', 'N/A')}")
-        print(f"- Type:     {self._answers.get('change_type', 'N/A')}")
-        print(f"- Phase:    {self._answers.get('project_phase', 'N/A')}")
-        print(f"- Priority: {self._answers.get('priority', 5)} (out of 10)")
-        print(f"- Code Found at: {self._answers.get('project_root', './')}")
+        print(f"\n- Project:    {self._project['prjname']}")
+        print(f"- Request:    {self._answers.get('name', 'N/A')}")
+        print(f"- Type:       {self._answers.get('change_type', 'N/A')}")
+        print(f"- Priority:   {self._answers.get('priority', 5)} (out of 10)")
 
-        if not self._is_bugfix:
-            infra = self._answers.get("infrastructure", {})
-            print("- Infrastructure Preferences:")
-            print(f"  - Compute: {infra.get('compute', 'N/A')}")
-            print(f"  - Storage: {infra.get('storage', 'N/A')}")
-            print(f"  - Queue:   {infra.get('queue', 'N/A')}")
-            print(f"  - Access:  {infra.get('access', 'N/A')}")
+        codedir = self._answers.get("codedir")
+        if codedir:
+            print(f"- Code Dir:   {codedir}")
+        elif self._project.get("prjcodedir"):
+            print(f"- Code Dir:   {self._project['prjcodedir']} (from project)")
 
-        print("\n- Instructions:")
+        infrastructure = self._answers.get("infrastructure", [])
+        if infrastructure:
+            print("- Infrastructure:")
+            for inf in infrastructure:
+                print(f"    - {inf['inftype']}: {inf['infval']} ({inf['infprovider']})")
+
+        print("\n- Description:")
         desc = self._answers.get("description", "N/A")
-        for line in desc.split("\n"):
-            print(f"  > {line}")
+        for line in desc.split("\n")[:5]:  # Show first 5 lines
+            print(f"    {line[:60]}...")
 
         print("\n" + "=" * 60)
 
         return questionary.confirm(
-            "Press Enter to Accept, or 'n' to cancel:",
+            "Create this request?",
             default=True,
             style=WIZARD_STYLE,
         ).ask()
 
-    def _show_next_steps(self, task_path: str) -> None:
-        """Show next steps after task creation.
-
-        Args:
-            task_path: Path to the created task file
-        """
-        print("\n" + "=" * 60)
-        print("Congratulations! Task created successfully!")
-        print("=" * 60)
-        print(f"\nTask file: {task_path}")
-        print("\nIf you have a BW loop already running, nothing more to do!")
-        print("Simply monitor and wait for the job to be completed.")
-        print("\nTo start a new BentWookie loop:")
-        print('```bash')
-        print('while :; do bw --next_prompt "loop name" | claude ; done')
-        print('```')
-        print("\nThanks for playing!")
-
-    def _build_body(self) -> str:
-        """Build the markdown body for the task.
+    def _create_request(self) -> int:
+        """Create the request in the database.
 
         Returns:
-            Markdown body content
+            New request ID
         """
-        # Load the template for instructions placeholder
-        resources = get_stage_resources("1plan")
-        template_instructions = resources.get("instructions", "{instructions}")
+        reqid = create_request(
+            prjid=self._project["prjid"],
+            reqname=self._answers["name"],
+            reqprompt=self._answers["description"],
+            reqtype=self._answers.get("change_type", "new_feature"),
+            reqpriority=self._answers.get("priority", DEFAULT_PRIORITY),
+            reqcodedir=self._answers.get("codedir"),
+        )
 
-        body = f"""# Instructions
-{{instructions}}
+        # Add request-level infrastructure overrides
+        for inf in self._answers.get("infrastructure", []):
+            add_request_infrastructure(
+                reqid=reqid,
+                inftype=inf["inftype"],
+                infprovider=inf["infprovider"],
+                infval=inf["infval"],
+                infnote=inf.get("infnote"),
+            )
 
+        return reqid
 
-# Learnings
-{{learnings}}
+    def _show_next_steps(self, reqid: int) -> None:
+        """Show next steps after request creation.
 
+        Args:
+            reqid: Created request ID
+        """
+        print("\n" + "=" * 60)
+        print("Request created successfully!")
+        print("=" * 60)
+        print(f"\nRequest ID: {reqid}")
+        print(f"Project:    {self._project['prjname']}")
+        print(f"Name:       {self._answers['name']}")
+        print("\nIf you have a BW loop already running, it will pick up this request!")
+        print("\nTo start the daemon:")
+        print("  bw loop start")
+        print("\nTo check status:")
+        print("  bw loop status")
+        print("  bw request show", reqid)
+        print("\nTo view in web UI:")
+        print("  bw web")
+        print("\nThanks for using BentWookie!")
 
-# User Request
-{self._answers.get('description', '')}
-
-
-# Implementation Plan
-(To be filled by AI during planning phase)
-"""
-        return body
-
-    def run(self) -> Task | None:
+    def run(self) -> int | None:
         """Run the planning wizard.
 
         Returns:
-            Created task dictionary, or None if cancelled
+            Created request ID, or None if cancelled
         """
         try:
             print("\n" + "=" * 60)
-            print("BentWookie Planning Wizard")
+            print("BentWookie Planning Wizard (v0.2.0)")
             print("=" * 60 + "\n")
 
-            # Q1: Feature name
+            # Step 1: Select or create project
+            self._ask_project()
+
+            # Step 2: Request name
             self._ask_name()
 
-            # Q1.1: Source location
-            self._ask_source_location()
-
-            # Q2: Change type
+            # Step 3: Change type
             self._ask_change_type()
 
-            # Q3: Project phase
-            self._ask_project_phase()
-
-            # Q4: Priority
+            # Step 4: Priority
             self._ask_priority()
 
-            # Q5-Q8: Infrastructure (skip for bug fixes)
-            if not self._is_bugfix:
-                self._ask_compute()
-                self._ask_storage()
-                self._ask_queue()
-                self._ask_access()
-            else:
-                self._answers["infrastructure"] = {
-                    "compute": None,
-                    "storage": None,
-                    "queue": None,
-                    "access": None,
-                }
+            # Step 5: Code directory override
+            self._ask_codedir()
 
-            # Q9: Description
+            # Step 6: Infrastructure (skip for bug fixes)
+            if not self._is_bugfix:
+                self._ask_all_infrastructure()
+
+            # Step 7: Description
             self._ask_description()
 
             # Confirmation
@@ -537,42 +503,36 @@ class PlanningWizard:
                 print("\nWizard cancelled.")
                 return None
 
-            # Create the task
-            body = self._build_body()
-            task = create_task_file(
-                name=self._answers["name"],
-                stage="1plan",
-                body=body,
-                change_type=self._answers.get("change_type", "New Feature"),
-                project_phase=self._answers.get("project_phase", "MVP"),
-                priority=self._answers.get("priority", 5),
-                project_root=self._answers.get("project_root", "./"),
-                infrastructure=self._answers.get("infrastructure", {}),
-            )
+            # Create the request
+            reqid = self._create_request()
 
             # Show next steps
-            self._show_next_steps(task.get("file_path", ""))
+            self._show_next_steps(reqid)
 
-            return task
+            return reqid
 
         except KeyboardInterrupt:
             print("\n\nWizard cancelled by user.")
             return None
-        except WizardError as e:
+        except ValueError as e:
             print(f"\nWizard error: {e}")
             return None
 
 
-def plan(feature_name: str | None = None) -> Task | None:
+def wizard(feature_name: str | None = None) -> int | None:
     """Run the planning wizard.
 
-    This is the main entry point for creating new task plans.
+    This is the main entry point for creating new requests.
 
     Args:
         feature_name: Optional pre-set feature name
 
     Returns:
-        Created task dictionary, or None if cancelled
+        Created request ID, or None if cancelled
     """
-    wizard = PlanningWizard(feature_name)
-    return wizard.run()
+    w = PlanningWizard(feature_name)
+    return w.run()
+
+
+# Alias for backwards compatibility
+plan = wizard

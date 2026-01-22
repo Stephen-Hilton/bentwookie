@@ -1,7 +1,9 @@
 """Request processor using Claude Agent SDK."""
 
 import asyncio
+import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -20,6 +22,9 @@ from ..constants import (
 MAX_RETRIES = 3
 INITIAL_BACKOFF = 60  # seconds
 MAX_BACKOFF = 600  # 10 minutes
+
+# Test retry limit to prevent infinite dev<->test loops
+MAX_TEST_RETRIES = 3
 
 # Track rate limit state globally so daemon can pause
 _rate_limited_until: float = 0
@@ -63,6 +68,118 @@ def _is_rate_limit_error(error_msg: str) -> bool:
         "overloaded",
         "capacity",
     ])
+
+
+def _parse_test_results(response_text: str) -> dict | None:
+    """Parse test results JSON from Claude's response.
+
+    Args:
+        response_text: Full response text from Claude.
+
+    Returns:
+        Parsed test results dict or None if not found/invalid.
+    """
+    # Look for JSON block in the response
+    json_match = re.search(r'```json\s*(\{.*?\})\s*```', response_text, re.DOTALL)
+    if json_match:
+        try:
+            return json.loads(json_match.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    # Also try to find raw JSON object
+    json_match = re.search(r'\{[^{}]*"error_count"[^{}]*\}', response_text)
+    if json_match:
+        try:
+            return json.loads(json_match.group(0))
+        except json.JSONDecodeError:
+            pass
+
+    return None
+
+
+def _generate_error_fix_plan(code_dir: str, test_results: dict) -> str:
+    """Generate a new PLAN.md focused on fixing test errors.
+
+    Reads the existing PLAN.md and TESTPLAN.md, extracts error information,
+    and creates a new plan focused on fixes.
+
+    Args:
+        code_dir: Path to the code directory.
+        test_results: Parsed test results dict.
+
+    Returns:
+        Path to the updated PLAN.md.
+    """
+    plan_path = Path(code_dir) / "PLAN.md"
+    testplan_path = Path(code_dir) / "TESTPLAN.md"
+
+    # Read existing documents
+    old_plan = ""
+    if plan_path.exists():
+        old_plan = plan_path.read_text()
+
+    testplan = ""
+    if testplan_path.exists():
+        testplan = testplan_path.read_text()
+
+    # Extract error sections from TESTPLAN
+    error_sections = []
+    if testplan:
+        # Find all ERROR blocks
+        error_pattern = r'(\*\*ERROR\*\*:.*?)(?=###|\Z)'
+        errors = re.findall(error_pattern, testplan, re.DOTALL)
+        error_sections = errors
+
+    # Extract summary section from old plan
+    summary_match = re.search(r'## Summary(.*?)(?=##|\Z)', old_plan, re.DOTALL)
+    summary = summary_match.group(1).strip() if summary_match else ""
+
+    # Generate new plan
+    failed_tests = test_results.get("failed_tests", [])
+    error_count = test_results.get("error_count", 0)
+
+    new_plan = f"""# Error Fix Plan
+
+**IMPORTANT**: This plan was auto-generated after test failures. Review this document,
+all code in the working directory, and resolve all errors.
+
+## Original Summary
+{summary}
+
+## Test Failure Summary
+- **Total Errors**: {error_count}
+- **Failed Tests**: {', '.join(failed_tests) if failed_tests else 'See TESTPLAN.md'}
+
+## Errors to Fix
+
+Review TESTPLAN.md for detailed error information. Key errors:
+
+"""
+    for i, error in enumerate(error_sections[:5], 1):  # Limit to first 5 errors
+        new_plan += f"### Error {i}\n{error.strip()}\n\n"
+
+    new_plan += """
+## Implementation Steps
+
+1. **Review each failed test** in TESTPLAN.md
+2. **Analyze the error details** (Error Type, Message, Stack Trace)
+3. **Apply the suggested fixes** from the Analysis sections
+4. **Verify fixes** don't break other functionality
+5. **Update TESTPLAN.md** if you add new tests
+
+## Guidelines
+
+- Focus on fixing errors, not adding new features
+- Run quick sanity checks after each fix
+- Document any changes to the implementation approach
+"""
+
+    # Write the new plan
+    plan_path.write_text(new_plan)
+    return str(plan_path)
+
+
 from ..db import queries
 from ..logging_util import get_logger
 from .phases import (
@@ -73,6 +190,63 @@ from .phases import (
     get_system_prompt,
     save_to_docs,
 )
+
+# BentWookie project ID for auto-created bug-fix requests
+BENTWOOKIE_PROJECT_ID = 1
+
+
+def _create_bugfix_request(original_request: dict, error_msg: str) -> int | None:
+    """Create a bug-fix request for BentWookie when a request fails.
+
+    Args:
+        original_request: The request that failed.
+        error_msg: The error message describing the failure.
+
+    Returns:
+        The new request ID, or None if creation failed.
+    """
+    logger = get_logger()
+
+    try:
+        # Build the bug-fix prompt with error details
+        prompt = f"""## Bug Fix Request
+
+**Original Request**: {original_request.get('reqname', 'Unknown')} (ID: {original_request.get('reqid')})
+**Project**: {original_request.get('prjname', 'Unknown')}
+**Phase**: {original_request.get('reqphase', 'Unknown')}
+
+### Error Details
+
+{error_msg}
+
+### Task
+
+Please investigate and fix this error. Review the error details above, identify the root cause, and implement a fix.
+
+### Context
+
+This bug-fix request was auto-generated when request ID {original_request.get('reqid')} failed with an error.
+"""
+
+        # Create the bug-fix request for BentWookie (project ID 3)
+        reqid = queries.create_request(
+            prjid=BENTWOOKIE_PROJECT_ID,
+            reqname=f"Bug-Fix: {original_request.get('reqname', 'Unknown')[:40]}",
+            reqprompt=prompt,
+            reqtype="bug_fix",
+            reqstatus="tbd",
+            reqphase="plan",
+            reqpriority=3,  # Higher priority for bug fixes
+        )
+
+        logger.info(
+            f"Created bug-fix request {reqid} for failed request {original_request.get('reqid')}"
+        )
+        return reqid
+
+    except Exception as e:
+        logger.warning(f"Failed to create bug-fix request: {e}")
+        return None
 
 # Import Claude Agent SDK
 try:
@@ -104,12 +278,16 @@ async def process_request(request: dict) -> bool:
 
     logger.info(f"Processing request {reqid} ({request['reqname']}) - phase: {phase}")
 
-    # Mark as work in progress
+    # Mark as work in progress and clear any previous error
+    queries.update_request_error(reqid, None)
     queries.update_request_status(reqid, STATUS_WIP)
 
     if not SDK_AVAILABLE:
-        logger.error("Claude Agent SDK not available. Install with: pip install claude-agent-sdk")
+        error_msg = "Claude Agent SDK not available. Install with: pip install claude-agent-sdk"
+        logger.error(error_msg)
+        queries.update_request_error(reqid, error_msg)
         queries.update_request_status(reqid, STATUS_ERR)
+        _create_bugfix_request(request, error_msg)
         return False
 
     # Check auth mode and validate accordingly
@@ -119,12 +297,15 @@ async def process_request(request: dict) -> bool:
     if auth_mode == AUTH_MODE_API:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            logger.error(
-                "Auth mode is 'api' but ANTHROPIC_API_KEY not set.\n"
-                "  Either set the key: export ANTHROPIC_API_KEY='your-key'\n"
-                "  Or switch to Max mode: bw config --auth max"
+            error_msg = (
+                "Auth mode is 'api' but ANTHROPIC_API_KEY not set. "
+                "Either set the key: export ANTHROPIC_API_KEY='your-key' "
+                "Or switch to Max mode: bw config --auth max"
             )
+            logger.error(error_msg)
+            queries.update_request_error(reqid, error_msg)
             queries.update_request_status(reqid, STATUS_ERR)
+            _create_bugfix_request(request, error_msg)
             return False
     elif auth_mode == AUTH_MODE_MAX:
         # Unset API key so SDK uses CLI's web auth instead
@@ -137,12 +318,22 @@ async def process_request(request: dict) -> bool:
         # Build phase-specific prompt
         prompt = get_phase_prompt(request)
 
-        # Determine working directory (must be absolute path)
+        # Determine working directory with fallback hierarchy:
+        # 1. Request reqcodedir (if set)
+        # 2. Project prjcodedir (if set)
+        # 3. Create CWD/project_name subfolder (auto-created)
         code_dir = request.get("reqcodedir")
-        if code_dir:
-            cwd = str(Path(code_dir).resolve())
-        else:
-            cwd = os.getcwd()
+        if not code_dir:
+            code_dir = request.get("prjcodedir")
+        if not code_dir:
+            # Create project-named subfolder in CWD
+            project_name = request.get("prjname", "project")
+            code_dir = os.path.join(os.getcwd(), project_name)
+            # Auto-create the directory if it doesn't exist
+            Path(code_dir).mkdir(parents=True, exist_ok=True)
+            logger.info(f"Created project code directory: {code_dir}")
+
+        cwd = str(Path(code_dir).resolve())
 
         # Configure Claude SDK
         options = ClaudeAgentOptions(
@@ -171,22 +362,71 @@ async def process_request(request: dict) -> bool:
             queries.update_request_docpath(reqid, doc_path)
             logger.info(f"Saved phase output to: {doc_path}")
 
-        # Advance to next phase
-        next_phase = get_next_phase(phase)
-        if next_phase:
+        # Special handling for test phase - check for failures
+        if phase == "test":
+            test_results = _parse_test_results(response_text)
+            if test_results and test_results.get("error_count", 0) > 0:
+                error_count = test_results["error_count"]
+                retry_count = request.get("reqtestretries", 0) or 0
+
+                if retry_count >= MAX_TEST_RETRIES:
+                    # Max retries exceeded - mark as error
+                    error_msg = (
+                        f"Max test retries ({MAX_TEST_RETRIES}) exceeded. "
+                        f"{error_count} test(s) still failing."
+                    )
+                    logger.error(f"Request {reqid} failed: {error_msg}")
+                    queries.update_request_error(reqid, error_msg)
+                    queries.update_request_status(reqid, STATUS_ERR)
+                    queries.add_learning(
+                        request["prjid"],
+                        f"Request '{request['reqname']}' exceeded max test retries with {error_count} failures"
+                    )
+                    _create_bugfix_request(request, error_msg)
+                    return False
+
+                # Generate error fix plan and loop back to dev
+                logger.warning(
+                    f"Request {reqid} has {error_count} test failure(s). "
+                    f"Generating fix plan and returning to dev phase (retry {retry_count + 1}/{MAX_TEST_RETRIES})"
+                )
+
+                # Generate new PLAN.md with error fixes
+                _generate_error_fix_plan(cwd, test_results)
+
+                # Increment retry counter and go back to dev
+                queries.increment_request_test_retries(reqid)
+                queries.update_request_phase(reqid, "dev")
+                queries.update_request_status(reqid, STATUS_TBD)
+
+                logger.info(f"Request {reqid} returned to dev phase for error fixes")
+                return True
+
+            # Tests passed - reset retry counter and continue
+            if request.get("reqtestretries", 0):
+                queries.reset_request_test_retries(reqid)
+                logger.info(f"Request {reqid} tests passed, retry counter reset")
+
+        # Advance to next phase (skip deploy/verify for local infrastructure)
+        next_phase = get_next_phase(phase, reqid)
+        if next_phase and next_phase != "complete":
             queries.update_request_phase(reqid, next_phase)
             queries.update_request_status(reqid, STATUS_TBD)
             logger.info(f"Request {reqid} advanced to phase: {next_phase}")
         else:
-            # Request is complete
+            # Request is complete (next_phase is None or "complete")
+            queries.update_request_phase(reqid, "complete")
             queries.update_request_status(reqid, STATUS_DONE)
             logger.info(f"Request {reqid} completed all phases")
 
         return True
 
     except asyncio.TimeoutError:
-        logger.error(f"Request {reqid} timed out in phase {phase}")
+        error_msg = f"Timed out in phase {phase}"
+        logger.error(f"Request {reqid} {error_msg}")
+        queries.update_request_error(reqid, error_msg)
         queries.update_request_status(reqid, STATUS_TMOUT)
+        _create_bugfix_request(request, error_msg)
         return False
 
     except Exception as e:
@@ -205,23 +445,22 @@ async def process_request(request: dict) -> bool:
             queries.update_request_status(reqid, STATUS_TBD)
             return False
 
-        # Check for common issues and provide helpful messages
+        # Build user-friendly error message
+        friendly_error = error_msg
         if "credit" in error_msg.lower() or "balance" in error_msg.lower() or "billing" in error_msg.lower():
-            logger.error(
-                f"Request {reqid} failed: Insufficient credits.\n"
-                "  Add credits at: https://console.anthropic.com/settings/billing"
-            )
+            friendly_error = "Insufficient credits. Add credits at: https://console.anthropic.com/settings/billing"
+            logger.error(f"Request {reqid} failed: {friendly_error}")
         elif "exit code 1" in error_msg.lower() or "command failed" in error_msg.lower():
-            # Generic CLI error - might be billing, auth, or other issue
-            logger.error(
-                f"Request {reqid} failed: Claude CLI returned an error.\n"
-                "  Check your API credits and authentication."
-            )
+            friendly_error = "Claude CLI returned an error. Check your API credits and authentication."
+            logger.error(f"Request {reqid} failed: {friendly_error}")
         elif "api" in error_msg.lower() or "key" in error_msg.lower() or "auth" in error_msg.lower():
-            logger.error(f"Request {reqid} failed: Authentication error - {error_msg}")
+            friendly_error = f"Authentication error: {error_msg}"
+            logger.error(f"Request {reqid} failed: {friendly_error}")
         else:
-            logger.error(f"Request {reqid} failed in phase {phase}: {error_msg}")
+            friendly_error = f"Error in phase {phase}: {error_msg}"
+            logger.error(f"Request {reqid} failed: {friendly_error}")
 
+        queries.update_request_error(reqid, friendly_error)
         queries.update_request_status(reqid, STATUS_ERR)
 
         # Try to add learning about the error
@@ -232,6 +471,9 @@ async def process_request(request: dict) -> bool:
             )
         except Exception:
             pass
+
+        # Create bug-fix request for BentWookie
+        _create_bugfix_request(request, friendly_error)
 
         return False
 
@@ -298,8 +540,8 @@ async def _process_request_mock(request: dict) -> bool:
     # Simulate some work
     await asyncio.sleep(1)
 
-    # Advance to next phase
-    next_phase = get_next_phase(phase)
+    # Advance to next phase (skip deploy/verify for local infrastructure)
+    next_phase = get_next_phase(phase, reqid)
     if next_phase:
         queries.update_request_phase(reqid, next_phase)
         queries.update_request_status(reqid, STATUS_TBD)

@@ -274,9 +274,15 @@ class TestStatusCommand:
 class TestLoopCommands:
     """Tests for loop subcommands."""
 
-    def test_loop_status_not_running(self, runner, temp_db):
+    def test_loop_status_not_running(self, runner, temp_db, monkeypatch):
         """Test loop status when daemon not running."""
+        from bentwookie.loop import daemon
+
         runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
+
+        # Mock daemon not running
+        monkeypatch.setattr(daemon, "is_daemon_running", lambda: False)
+        monkeypatch.setattr(daemon, "read_pid_file", lambda: None)
 
         result = runner.invoke(main, ["loop", "status"])
         assert result.exit_code == 0

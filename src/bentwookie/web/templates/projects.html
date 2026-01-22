@@ -3,8 +3,14 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Projects</h1>
-    <a href="{{ url_for('project_new') }}" class="btn btn-primary">New Project</a>
+    <h1>
+        <img src="{{ url_for('static', filename='icons/ui_viewproject.png') }}" alt="">
+        Projects
+    </h1>
+    <a href="{{ url_for('project_new') }}" class="btn btn-primary">
+        <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
+        New Project
+    </a>
 </div>
 
 {% if projects %}
@@ -30,7 +36,14 @@
             <td>{{ p.prjphase }}</td>
             <td>{{ p.request_count }} ({{ p.pending_count }} pending)</td>
             <td>
-                <a href="{{ url_for('project_view', prjid=p.prjid) }}" class="btn btn-sm">View</a>
+                <a href="{{ url_for('project_view', prjid=p.prjid) }}" class="btn btn-sm">
+                    <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
+                    View
+                </a>
+                <a href="{{ url_for('project_edit', prjid=p.prjid) }}" class="btn btn-sm">
+                    <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
+                    Edit
+                </a>
                 <form action="{{ url_for('project_delete_route', prjid=p.prjid) }}" method="POST" style="display:inline;"
                       onsubmit="return confirm('Delete project {{ p.prjname }}?');">
                     <button type="submit" class="btn btn-sm btn-danger">Delete</button>

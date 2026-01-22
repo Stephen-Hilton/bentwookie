@@ -14,6 +14,7 @@ class Project:
     prjpriority: int = 5
     prjphase: str = "dev"
     prjdesc: str | None = None
+    prjcodedir: str | None = None
     prjtouchts: datetime | None = None
 
     @classmethod
@@ -26,6 +27,7 @@ class Project:
             prjpriority=data.get("prjpriority", 5),
             prjphase=data.get("prjphase", "dev"),
             prjdesc=data.get("prjdesc"),
+            prjcodedir=data.get("prjcodedir"),
             prjtouchts=data.get("prjtouchts"),
         )
 
@@ -38,6 +40,7 @@ class Project:
             "prjpriority": self.prjpriority,
             "prjphase": self.prjphase,
             "prjdesc": self.prjdesc,
+            "prjcodedir": self.prjcodedir,
             "prjtouchts": self.prjtouchts,
         }
 
@@ -56,6 +59,7 @@ class Request:
     reqpriority: int = 5
     reqcodedir: str | None = None
     reqdocpath: str | None = None
+    reqerror: str | None = None
     reqtouchts: datetime | None = None
     # Joined fields
     prjname: str | None = None
@@ -75,6 +79,7 @@ class Request:
             reqpriority=data.get("reqpriority", 5),
             reqcodedir=data.get("reqcodedir"),
             reqdocpath=data.get("reqdocpath"),
+            reqerror=data.get("reqerror"),
             reqtouchts=data.get("reqtouchts"),
             prjname=data.get("prjname"),
             project_phase=data.get("project_phase"),
@@ -93,6 +98,7 @@ class Request:
             "reqpriority": self.reqpriority,
             "reqcodedir": self.reqcodedir,
             "reqdocpath": self.reqdocpath,
+            "reqerror": self.reqerror,
             "reqtouchts": self.reqtouchts,
         }
 
@@ -125,6 +131,41 @@ class Infrastructure:
         return {
             "infid": self.infid,
             "prjid": self.prjid,
+            "inftype": self.inftype,
+            "infprovider": self.infprovider,
+            "infval": self.infval,
+            "infnote": self.infnote,
+        }
+
+
+@dataclass
+class RequestInfrastructure:
+    """Represents infrastructure configuration override for a request."""
+
+    reqid: int
+    inftype: str
+    rinfid: int | None = None
+    infprovider: str = "local"
+    infval: str | None = None
+    infnote: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "RequestInfrastructure":
+        """Create a RequestInfrastructure from a database row dict."""
+        return cls(
+            rinfid=data.get("rinfid"),
+            reqid=data["reqid"],
+            inftype=data["inftype"],
+            infprovider=data.get("infprovider", "local"),
+            infval=data.get("infval"),
+            infnote=data.get("infnote"),
+        )
+
+    def to_dict(self) -> dict:
+        """Convert to a dict for database operations."""
+        return {
+            "rinfid": self.rinfid,
+            "reqid": self.reqid,
             "inftype": self.inftype,
             "infprovider": self.infprovider,
             "infval": self.infval,
@@ -166,9 +207,11 @@ class DaemonStatus:
     """Represents the current status of the daemon."""
 
     running: bool = False
+    paused: bool = False
     current_request_id: int | None = None
     current_phase: str | None = None
     started_at: datetime | None = None
     last_activity: datetime | None = None
     requests_processed: int = 0
     errors_count: int = 0
+    iteration_count: int = 0

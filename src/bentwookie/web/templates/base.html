@@ -5,17 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BentWookie{% block title_suffix %}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/logocircle.png') }}">
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-brand">
+            <img src="{{ url_for('static', filename='icons/logocircle.png') }}" alt="BentWookie">
             <a href="{{ url_for('index') }}">BentWookie</a>
         </div>
         <ul class="nav-links">
-            <li><a href="{{ url_for('index') }}" {% if page == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
-            <li><a href="{{ url_for('projects_list') }}" {% if page == 'projects' %}class="active"{% endif %}>Projects</a></li>
-            <li><a href="{{ url_for('requests_list') }}" {% if page == 'requests' %}class="active"{% endif %}>Requests</a></li>
-            <li><a href="{{ url_for('status_page') }}" {% if page == 'status' %}class="active"{% endif %}>Status</a></li>
+            <li>
+                <a href="{{ url_for('index') }}" {% if page == 'dashboard' %}class="active"{% endif %}>
+                    <img src="{{ url_for('static', filename='icons/ui_dashboard.png') }}" alt="" class="nav-icon">
+                    Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('projects_list') }}" {% if page == 'projects' %}class="active"{% endif %}>
+                    <img src="{{ url_for('static', filename='icons/ui_viewproject.png') }}" alt="" class="nav-icon">
+                    Projects
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('requests_list') }}" {% if page == 'requests' %}class="active"{% endif %}>
+                    <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="" class="nav-icon">
+                    Requests
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('status_page') }}" {% if page == 'status' %}class="active"{% endif %}>
+                    <img src="{{ url_for('static', filename='icons/ui_viewloop.png') }}" alt="" class="nav-icon">
+                    Status
+                </a>
+            </li>
         </ul>
     </nav>
 
@@ -30,7 +52,22 @@
 
         {% block content %}
         {% if page == 'dashboard' %}
-        <h1>Dashboard</h1>
+        <div class="page-header">
+            <h1>
+                <img src="{{ url_for('static', filename='icons/ui_dashboard.png') }}" alt="">
+                Dashboard
+            </h1>
+            <div class="button-group">
+                <a href="{{ url_for('project_new') }}" class="btn btn-primary">
+                    <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
+                    New Project
+                </a>
+                <a href="{{ url_for('request_new') }}" class="btn btn-primary">
+                    <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
+                    New Request
+                </a>
+            </div>
+        </div>
 
         <div class="stats-grid">
             <div class="stat-card">
@@ -60,7 +97,10 @@
         </div>
 
         <section class="section">
-            <h2>Recent Requests</h2>
+            <h2>
+                <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
+                Recent Requests
+            </h2>
             {% if recent_requests %}
             <table class="table">
                 <thead>
@@ -90,10 +130,19 @@
         </section>
 
         <section class="section">
-            <h2>Quick Actions</h2>
+            <h2>
+                <img src="{{ url_for('static', filename='icons/ui_pipeline.png') }}" alt="">
+                Quick Actions
+            </h2>
             <div class="button-group">
-                <a href="{{ url_for('project_new') }}" class="btn btn-primary">New Project</a>
-                <a href="{{ url_for('request_new') }}" class="btn btn-primary">New Request</a>
+                <a href="{{ url_for('project_new') }}" class="btn btn-primary">
+                    <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
+                    New Project
+                </a>
+                <a href="{{ url_for('request_new') }}" class="btn btn-primary">
+                    <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
+                    New Request
+                </a>
             </div>
         </section>
         {% endif %}
@@ -101,7 +150,8 @@
     </main>
 
     <footer class="footer">
-        <p>BentWookie v2 - AI Coding Loop Workflow Manager</p>
+        <img src="{{ url_for('static', filename='icons/logocircle.png') }}" alt="BentWookie">
+        <p>BentWookie v0.2.0 - AI Coding Loop Workflow Manager</p>
     </footer>
 </body>
 </html>
