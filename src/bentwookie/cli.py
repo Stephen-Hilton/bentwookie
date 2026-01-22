@@ -798,14 +798,16 @@ def loop_group() -> None:
 
 @loop_group.command("start")
 @click.option("--poll", "-p", type=int, default=30, help="Poll interval in seconds")
-@click.option("--log", "-l", type=str, help="Log file path pattern")
+@click.option("--log", "-l", type=str, help="Log file path pattern (default: logs/{loopname}_{today}.log)")
 @click.option("--name", "-n", type=str, default="bwloop", help="Loop name")
 @click.option("--foreground", "-f", is_flag=True, help="Run in foreground")
+@click.option("--debug", "-d", is_flag=True, help="Enable debug logging")
 def loop_start(
     poll: int,
     log: str | None,
     name: str,
     foreground: bool,
+    debug: bool,
 ) -> None:
     """Start the daemon loop.
 
@@ -813,27 +815,30 @@ def loop_start(
     Examples:
       bw loop start
       bw loop start --foreground
+      bw loop start --foreground --debug
       bw loop start --poll 60 --log logs/{loopname}_{today}.log
     """
-    from .loop.daemon import is_daemon_running, start_daemon, write_pid_file
-
-    if is_daemon_running():
-        raise click.ClickException("Daemon is already running")
+    from .loop.daemon import start_daemon
 
     click.echo(f"Starting BentWookie daemon (loop: {name})...")
+    if debug:
+        click.echo("Debug logging enabled")
 
     if foreground:
         click.echo("Running in foreground. Press Ctrl+C to stop.")
     else:
         click.echo("Running in background.")
 
-    write_pid_file()
-    start_daemon(
+    # start_daemon handles PID file and checks if already running
+    started = start_daemon(
         poll_interval=poll,
         log_path=log,
         loop_name=name,
         foreground=foreground,
+        debug=debug,
     )
+    if not started:
+        raise click.ClickException("Failed to start daemon (may already be running)")
 
 
 @loop_group.command("stop")

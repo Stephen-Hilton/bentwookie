@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bentwookie"
-version = "0.2.0"
+version = "0.2.1"
 description = "AI coding loop workflow manager with SQLite state and Claude Agent SDK integration"
 readme = "README.md"
 license = {text = "MIT"}

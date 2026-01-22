@@ -24,6 +24,7 @@ class BentWookieDaemon:
         poll_interval: int = DAEMON_POLL_INTERVAL,
         log_path: str | None = None,
         loop_name: str = "bwloop",
+        debug: bool = False,
     ):
         """Initialize the daemon.
 
@@ -31,16 +32,21 @@ class BentWookieDaemon:
             poll_interval: Seconds between polling for new requests.
             log_path: Path pattern for log file.
             loop_name: Name identifier for this loop instance.
+            debug: If True, enable debug-level logging.
         """
+        import logging
         self.poll_interval = poll_interval
         self.loop_name = loop_name
         self.running = False
         self.status = DaemonStatus()
 
-        # Initialize logging
-        if log_path:
-            init_logger(log_path=log_path, loop_name=loop_name)
+        # Initialize logging with appropriate level
+        log_level = logging.DEBUG if debug else logging.INFO
+        init_logger(log_path=log_path, loop_name=loop_name, level=log_level)
         self.logger = get_logger()
+
+        # Log startup info
+        self.logger.info(f"Initializing daemon (debug={debug})")
 
     async def run(self) -> None:
         """Run the main daemon loop."""
@@ -55,12 +61,33 @@ class BentWookieDaemon:
 
         self.logger.info(f"BentWookie daemon started (loop: {self.loop_name})")
         self.logger.info(f"Poll interval: {self.poll_interval}s")
+        self.logger.info(f"Working directory: {os.getcwd()}")
+        self.logger.info(f"PID: {os.getpid()}")
 
         # Ensure database is initialized
-        init_db()
+        try:
+            init_db()
+            self.logger.info("Database initialized")
+        except Exception as e:
+            self.logger.exception(f"Failed to initialize database: {e}")
+            raise
 
         # Clean up old docs at startup
-        cleanup_old_docs()
+        try:
+            cleanup_old_docs()
+        except Exception as e:
+            self.logger.warning(f"Failed to cleanup old docs: {e}")
+
+        # Check if Claude Agent SDK is available
+        try:
+            from claude_agent_sdk import query  # noqa: F401
+            self.logger.info("Claude Agent SDK available")
+        except ImportError:
+            self.logger.error(
+                "Claude Agent SDK not installed! "
+                "Install with: pip install claude-agent-sdk"
+            )
+            # Continue anyway - processor will handle this gracefully
 
         while self.running:
             try:
@@ -172,6 +199,7 @@ def start_daemon(
     log_path: str | None = None,
     loop_name: str = "bwloop",
     foreground: bool = True,
+    debug: bool = False,
 ) -> bool:
     """Start the BentWookie daemon.
 
@@ -180,23 +208,30 @@ def start_daemon(
         log_path: Path pattern for log file.
         loop_name: Name identifier for this loop.
         foreground: If True, run in foreground; if False, daemonize.
+        debug: If True, enable debug logging.
 
     Returns:
         True if daemon started successfully, False if already running.
     """
     global _daemon
 
-    # Check if daemon is already running
+    # Check if daemon is already running (must be BEFORE writing PID file)
     if is_daemon_running():
         pid = read_pid_file()
         print(f"Daemon is already running with PID {pid}")
         return False
 
+    # Use default log path if not specified
+    if log_path is None:
+        log_path = "logs/{loopname}_{today}.log"
+
     if not foreground:
         # Fork to background
         pid = os.fork()
         if pid > 0:
-            # Parent process
+            # Parent process - write child PID
+            PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+            PID_FILE.write_text(str(pid))
             print(f"Daemon started with PID {pid}")
             sys.exit(0)
         # Child process continues
@@ -214,16 +249,28 @@ def start_daemon(
         sys.stderr.flush()
         with open("/dev/null") as devnull:
             os.dup2(devnull.fileno(), sys.stdin.fileno())
+    else:
+        # Foreground mode - write current PID
+        write_pid_file()
 
-    # Create and run daemon
-    _daemon = BentWookieDaemon(
-        poll_interval=poll_interval,
-        log_path=log_path,
-        loop_name=loop_name,
-    )
+    try:
+        # Create and run daemon
+        _daemon = BentWookieDaemon(
+            poll_interval=poll_interval,
+            log_path=log_path,
+            loop_name=loop_name,
+            debug=debug,
+        )
 
-    asyncio.run(_daemon.run())
-    return True
+        asyncio.run(_daemon.run())
+        return True
+    except Exception as e:
+        print(f"Daemon failed to start: {e}")
+        remove_pid_file()
+        raise
+    finally:
+        # Clean up PID file when daemon exits
+        remove_pid_file()
 
 
 def stop_daemon() -> bool:

@@ -174,12 +174,15 @@ bw request delete <id>                # Delete request
 ```bash
 bw loop start                    # Start daemon (background)
 bw loop start --foreground       # Start in foreground (see output)
+bw loop start --foreground -d    # Foreground with debug logging
 bw loop start --poll 60          # Custom poll interval (seconds)
 bw loop start --log logs/bw.log  # Custom log file
 
 bw loop stop                     # Stop the daemon
 bw loop status                   # Check if daemon is running
 ```
+
+Logs are written to `logs/{loopname}_{today}.log` by default (e.g., `logs/bwloop_2026-01-21.log`).
 
 ### Status & Web UI
 
@@ -362,13 +365,37 @@ Settings are stored in `data/settings.json`:
 
 ### Log Path Placeholders
 
+The default log path is `logs/{loopname}_{today}.log`. You can customize it:
+
 ```bash
 bw loop start --log "logs/{loopname}_{today}.log"
 ```
 
+Available placeholders:
 - `{today}` - Current date (YYYY-MM-DD)
 - `{loopname}` - Loop identifier
 - `{datetime}` - Full datetime stamp
+
+## Troubleshooting
+
+### Daemon says "already running" but isn't
+
+If the daemon crashed or was killed, the PID file may be stale:
+
+```bash
+rm data/bentwookie.pid
+bw loop start --foreground --debug
+```
+
+### Debug mode
+
+Use `--debug` (or `-d`) for verbose logging:
+
+```bash
+bw loop start --foreground --debug
+```
+
+Check the log file at `logs/bwloop_YYYY-MM-DD.log` for detailed output.
 
 ## Migration from v1
 
