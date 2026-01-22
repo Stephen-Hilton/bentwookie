@@ -10,10 +10,7 @@ BentWookie - AI coding loop that manages development requests through various ph
 
 ```bash
 # Install
-git clone -b AIGen02 https://github.com/bentwookie/bentwookie.git
-cd bentwookie
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
+python -m pip install bentwookie
 
 # Initialize with Claude Max subscription
 bw init --auth max
