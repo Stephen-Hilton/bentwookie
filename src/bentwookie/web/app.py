@@ -10,6 +10,7 @@ from ..constants import (
     TYPE_NAMES,
     V2_STATUSES,
     VALID_INFRA_TYPES,
+    VALID_MODELS,
     VALID_PROJECT_PHASES,
     VALID_PROVIDERS,
     VALID_REQUEST_TYPES,
@@ -69,6 +70,7 @@ def create_app() -> Flask:
             "VALID_VERSIONS": VALID_VERSIONS,
             "VALID_PROJECT_PHASES": VALID_PROJECT_PHASES,
             "VALID_REQUEST_TYPES": VALID_REQUEST_TYPES,
+            "VALID_MODELS": VALID_MODELS,
             "V2_STATUSES": V2_STATUSES,
             "PHASES": PHASES,
             "VALID_INFRA_TYPES": VALID_INFRA_TYPES,
@@ -129,6 +131,10 @@ def register_routes(app: Flask) -> None:
         """Create a new project."""
         if request.method == "POST":
             try:
+                # Convert commit_enabled form value to int or None
+                commit_enabled_str = request.form.get("commit_enabled", "")
+                prjcommitenabled = int(commit_enabled_str) if commit_enabled_str else None
+
                 prjid = create_project(
                     prjname=request.form["name"],
                     prjversion=request.form.get("version", "poc"),
@@ -136,6 +142,12 @@ def register_routes(app: Flask) -> None:
                     prjphase=request.form.get("phase", "dev"),
                     prjdesc=request.form.get("desc") or None,
                     prjcodedir=request.form.get("codedir") or None,
+                    prjprompt=request.form.get("prompt") or None,
+                    prjclaudemd=request.form.get("claude_md_path") or None,
+                    prjmodel=request.form.get("model") or None,
+                    prjcommitenabled=prjcommitenabled,
+                    prjcommitbranchmode=request.form.get("commit_branch_mode") or None,
+                    prjcommitbranchname=request.form.get("commit_branch_name") or None,
                 )
                 flash(f"Project created successfully (ID: {prjid})", "success")
                 return redirect(url_for("projects_list"))
@@ -157,6 +169,10 @@ def register_routes(app: Flask) -> None:
 
         if request.method == "POST":
             try:
+                # Convert commit_enabled form value to int or None
+                commit_enabled_str = request.form.get("commit_enabled", "")
+                prjcommitenabled = int(commit_enabled_str) if commit_enabled_str else None
+
                 update_project(
                     prjid=prjid,
                     prjname=request.form["name"],
@@ -165,6 +181,12 @@ def register_routes(app: Flask) -> None:
                     prjphase=request.form.get("phase", "dev"),
                     prjdesc=request.form.get("desc") or None,
                     prjcodedir=request.form.get("codedir") or None,
+                    prjprompt=request.form.get("prompt") or None,
+                    prjclaudemd=request.form.get("claude_md_path") or None,
+                    prjmodel=request.form.get("model") or None,
+                    prjcommitenabled=prjcommitenabled,
+                    prjcommitbranchmode=request.form.get("commit_branch_mode") or None,
+                    prjcommitbranchname=request.form.get("commit_branch_name") or None,
                 )
                 flash("Project updated successfully", "success")
                 return redirect(url_for("project_view", prjid=prjid))
@@ -233,6 +255,10 @@ def register_routes(app: Flask) -> None:
 
         if request.method == "POST":
             try:
+                # Convert commit_mode form value to int
+                commit_mode_str = request.form.get("commit_mode", "1")
+                reqcommitenabled = int(commit_mode_str) if commit_mode_str else 1
+
                 reqid = create_request(
                     prjid=int(request.form["project"]),
                     reqname=request.form["name"],
@@ -240,6 +266,8 @@ def register_routes(app: Flask) -> None:
                     reqtype=request.form.get("type", "new_feature"),
                     reqpriority=int(request.form.get("priority", DEFAULT_PRIORITY)),
                     reqcodedir=request.form.get("codedir") or None,
+                    reqcommitenabled=reqcommitenabled,
+                    reqcommitbranch=request.form.get("commit_branch") or None,
                 )
                 flash(f"Request created successfully (ID: {reqid})", "success")
                 return redirect(url_for("requests_list"))
@@ -280,6 +308,10 @@ def register_routes(app: Flask) -> None:
 
         if request.method == "POST":
             try:
+                # Convert commit_mode form value to int
+                commit_mode_str = request.form.get("commit_mode", "1")
+                reqcommitenabled = int(commit_mode_str) if commit_mode_str else 1
+
                 update_request(
                     reqid=reqid,
                     reqname=request.form["name"],
@@ -287,6 +319,8 @@ def register_routes(app: Flask) -> None:
                     reqtype=request.form.get("type", "new_feature"),
                     reqpriority=int(request.form.get("priority", DEFAULT_PRIORITY)),
                     reqcodedir=request.form.get("codedir") or None,
+                    reqcommitenabled=reqcommitenabled,
+                    reqcommitbranch=request.form.get("commit_branch") or None,
                 )
                 flash("Request updated successfully", "success")
                 return redirect(url_for("request_view", reqid=reqid))
@@ -452,6 +486,45 @@ def register_routes(app: Flask) -> None:
         settings = get_loop_settings()
         settings["doc_retention_days"] = get_doc_retention_days()
         return jsonify(settings)
+
+    @app.route("/api/status")
+    def api_status():
+        """API endpoint for status data (for auto-refresh)."""
+        from ..loop.daemon import is_daemon_running, read_pid_file
+        from ..settings import get_loop_settings, get_doc_retention_days
+        from ..constants import STATUS_NAMES, PHASE_NAMES
+
+        daemon_running = is_daemon_running()
+        daemon_pid = read_pid_file() if daemon_running else None
+        loop_settings = get_loop_settings()
+        loop_settings["doc_retention_days"] = get_doc_retention_days()
+
+        projects = list_projects()
+        requests = list_requests()
+
+        # Calculate status breakdown
+        status_counts = {}
+        for r in requests:
+            s = r["reqstatus"]
+            status_counts[s] = status_counts.get(s, 0) + 1
+
+        # Calculate phase breakdown
+        phase_counts = {}
+        for r in requests:
+            p = r["reqphase"]
+            phase_counts[p] = phase_counts.get(p, 0) + 1
+
+        return jsonify({
+            "daemon_running": daemon_running,
+            "daemon_pid": daemon_pid,
+            "loop_paused": loop_settings["loop_paused"],
+            "project_count": len(projects),
+            "request_count": len(requests),
+            "status_counts": status_counts,
+            "phase_counts": phase_counts,
+            "status_names": STATUS_NAMES,
+            "phase_names": PHASE_NAMES,
+        })
 
     @app.route("/status")
     def status_page():

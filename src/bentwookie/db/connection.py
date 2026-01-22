@@ -86,6 +86,14 @@ def _run_migrations() -> None:
         ("request", "reqtestplanpath", "TEXT"),
         ("request", "reqtestretries", "INTEGER DEFAULT 0"),
         ("request", "reqerror", "TEXT"),
+        ("request", "reqcommitenabled", "INTEGER DEFAULT 1"),
+        ("request", "reqcommitbranch", "TEXT"),
+        ("project", "prjprompt", "TEXT"),
+        ("project", "prjclaudemd", "TEXT"),
+        ("project", "prjmodel", "TEXT"),
+        ("project", "prjcommitenabled", "INTEGER DEFAULT NULL"),
+        ("project", "prjcommitbranchmode", "TEXT"),
+        ("project", "prjcommitbranchname", "TEXT"),
     ]
 
     # Table migrations (new tables that might not exist in older DBs)

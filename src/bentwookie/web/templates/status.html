@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title_suffix %} - Status{% endblock %}
+{% block title_suffix %} - System{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -139,4 +139,86 @@
         </tbody>
     </table>
 </div>
+
+<script>
+// Auto-refresh status every 3 seconds
+(function() {
+    let refreshInterval;
+
+    function updateStatus() {
+        fetch('{{ url_for("api_status") }}')
+            .then(response => response.json())
+            .then(data => {
+                // Update daemon status
+                const daemonIndicator = document.querySelector('.status-indicator');
+                const daemonText = daemonIndicator.querySelector('span, strong') || daemonIndicator;
+
+                if (data.daemon_running) {
+                    daemonIndicator.className = 'status-indicator status-ok';
+                    let statusText = `Running (PID: ${data.daemon_pid})`;
+                    if (data.loop_paused) {
+                        statusText += ' - <span class="text-warning">PAUSED</span>';
+                    }
+                    daemonIndicator.innerHTML = statusText;
+                } else {
+                    daemonIndicator.className = 'status-indicator status-stopped';
+                    daemonIndicator.textContent = 'Stopped';
+                }
+
+                // Update counts
+                document.querySelector('.stat-card:nth-child(1) .stat-value').textContent = data.project_count;
+                document.querySelector('.stat-card:nth-child(2) .stat-value').textContent = data.request_count;
+
+                // Update status counts table
+                const statusTableBody = document.querySelector('.status-section:nth-of-type(3) tbody');
+                if (Object.keys(data.status_counts).length > 0) {
+                    statusTableBody.innerHTML = Object.entries(data.status_counts)
+                        .map(([status, count]) => `
+                            <tr>
+                                <td><span class="badge badge-${status}">${data.status_names[status] || status}</span></td>
+                                <td>${count}</td>
+                            </tr>
+                        `).join('');
+                } else {
+                    statusTableBody.innerHTML = '<tr><td colspan="2" class="empty-state">No requests</td></tr>';
+                }
+
+                // Update phase counts table
+                const phaseTableBody = document.querySelector('.status-section:nth-of-type(4) tbody');
+                if (Object.keys(data.phase_counts).length > 0) {
+                    phaseTableBody.innerHTML = Object.entries(data.phase_counts)
+                        .map(([phase, count]) => `
+                            <tr>
+                                <td><span class="badge badge-phase">${data.phase_names[phase] || phase}</span></td>
+                                <td>${count}</td>
+                            </tr>
+                        `).join('');
+                } else {
+                    phaseTableBody.innerHTML = '<tr><td colspan="2" class="empty-state">No requests</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Error updating status:', error);
+            });
+    }
+
+    // Start auto-refresh
+    function startAutoRefresh() {
+        updateStatus(); // Initial update
+        refreshInterval = setInterval(updateStatus, 3000); // Update every 3 seconds
+    }
+
+    // Stop auto-refresh when page is hidden (tab switching, etc.)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearInterval(refreshInterval);
+        } else {
+            startAutoRefresh();
+        }
+    });
+
+    // Start when page loads
+    startAutoRefresh();
+})();
+</script>
 {% endblock %}

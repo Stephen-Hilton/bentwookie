@@ -13,14 +13,30 @@ from ..db import queries
 
 def get_templates_dir() -> Path:
     """Get the path to the templates directory."""
+    # Use data/prompts/phases for user-editable templates
+    return Path("data/prompts/phases")
+
+
+def get_bundled_templates_dir() -> Path:
+    """Get the path to the bundled (fallback) templates directory."""
     return Path(__file__).parent.parent / "templates" / "phases"
+
+
+def get_system_template_path() -> Path:
+    """Get the path to the system prompt template."""
+    return Path("data/prompts/system.md")
+
+
+def get_bundled_system_template_path() -> Path:
+    """Get the path to the bundled system prompt template."""
+    return Path(__file__).parent.parent / "templates" / "system.md"
 
 
 def load_phase_template(phase: str) -> str:
     """Load the template for a given phase.
 
     Args:
-        phase: Phase name (plan, dev, test, deploy, verify, document).
+        phase: Phase name (plan, dev, test, deploy, verify, document, commit).
 
     Returns:
         Template content as string.
@@ -28,8 +44,24 @@ def load_phase_template(phase: str) -> str:
     Raises:
         FileNotFoundError: If template doesn't exist.
     """
+    from ..logging_util import get_logger
+
+    logger = get_logger()
+
+    # Try user-editable location first
     template_path = get_templates_dir() / f"{phase}.md"
-    return template_path.read_text()
+    if template_path.exists():
+        return template_path.read_text()
+
+    # Fall back to bundled templates
+    bundled_path = get_bundled_templates_dir() / f"{phase}.md"
+    if bundled_path.exists():
+        logger.debug(f"Using bundled template for {phase} (user template not found)")
+        return bundled_path.read_text()
+
+    raise FileNotFoundError(
+        f"Template for phase '{phase}' not found in {template_path} or {bundled_path}"
+    )
 
 
 def _load_plan_document(code_dir: str) -> str:
@@ -126,6 +158,14 @@ def get_phase_prompt(request: dict) -> str:
         plan_content = _load_plan_document(code_dir)
         testplan_content = _load_testplan_document(code_dir)
 
+    # Get commit branch info for commit phase
+    branch_mode = ""
+    target_branch = ""
+    if phase == "commit":
+        commit_info = get_commit_branch_info(request)
+        branch_mode = commit_info["branch_mode"]
+        target_branch = commit_info["target_branch"]
+
     # Format the template
     prompt = template.format(
         project_name=request.get("prjname", "Unknown"),
@@ -138,7 +178,13 @@ def get_phase_prompt(request: dict) -> str:
         infrastructure=infrastructure,
         plan_content=plan_content,
         testplan_content=testplan_content,
+        branch_mode=branch_mode,
+        target_branch=target_branch,
     )
+
+    # Append project prompt if present
+    if request.get("prjprompt"):
+        prompt += f"\n\n## Project Guidelines\n\n{request['prjprompt']}\n"
 
     # Append learnings if any
     if learnings_text:
@@ -198,6 +244,57 @@ def is_local_only(reqid: int) -> bool:
     return True
 
 
+def get_commit_branch_info(request: dict) -> dict:
+    """Get branch mode and target branch for commit phase.
+
+    Precedence: request-level → project-level → global settings
+
+    Args:
+        request: Request dict from database.
+
+    Returns:
+        Dict with branch_mode and target_branch keys.
+    """
+    from ..settings import get_commit_branch_mode, get_commit_branch_name
+
+    # Check request-level override
+    branch_override = request.get("reqcommitbranch")
+    if branch_override:
+        return {
+            "branch_mode": "other",
+            "target_branch": branch_override,
+        }
+
+    # Check project-level override
+    prj_mode = request.get("prjcommitbranchmode")
+    prj_branch = request.get("prjcommitbranchname")
+    if prj_mode:
+        if prj_mode == "other":
+            return {
+                "branch_mode": "other",
+                "target_branch": prj_branch or "main",
+            }
+        else:
+            return {
+                "branch_mode": "current",
+                "target_branch": "<current branch>",
+            }
+
+    # Use global settings
+    mode = get_commit_branch_mode()
+    if mode == "other":
+        branch_name = get_commit_branch_name()
+        return {
+            "branch_mode": "other",
+            "target_branch": branch_name or "main",
+        }
+    else:
+        return {
+            "branch_mode": "current",
+            "target_branch": "<current branch>",
+        }
+
+
 def get_next_phase(current_phase: str, reqid: int | None = None) -> str | None:
     """Get the next phase in the workflow.
 
@@ -216,6 +313,29 @@ def get_next_phase(current_phase: str, reqid: int | None = None) -> str | None:
             # Skip deploy -> document, skip verify -> document
             return "document"
 
+    # Skip commit phase if disabled
+    if reqid is not None and next_phase == "commit":
+        request = queries.get_request(reqid)
+        if request:
+            # Check request-level override first
+            if request.get("reqcommitenabled") == 0:  # Explicitly disabled
+                return "complete"
+            elif request.get("reqcommitenabled") == 2:  # Force enabled
+                return "commit"
+            else:  # Check project-level, then global setting
+                # Check project-level override
+                prj_commit_enabled = request.get("prjcommitenabled")
+                if prj_commit_enabled is not None:
+                    # Project has explicit setting: 0=disabled, 1=enabled
+                    if prj_commit_enabled == 0:
+                        return "complete"
+                    # If 1, continue to commit phase
+                else:
+                    # Use global setting
+                    from ..settings import get_commit_enabled
+                    if not get_commit_enabled():
+                        return "complete"
+
     return next_phase
 
 
@@ -228,10 +348,41 @@ def get_system_prompt(request: dict) -> str:
     Returns:
         System prompt string.
     """
+    from ..logging_util import get_logger
+
+    logger = get_logger()
     phase = request["reqphase"]
     project_name = request.get("prjname", "Unknown")
 
-    return f"""You are an AI assistant working on the {project_name} project.
+    # Try to load from template file
+    system_prompt = None
+    try:
+        template_path = get_system_template_path()
+        if template_path.exists():
+            template = template_path.read_text()
+            system_prompt = template.format(
+                phase=phase.upper(),
+                project_name=project_name,
+            )
+    except Exception as e:
+        logger.warning(f"Could not load system template: {e}, using fallback")
+
+    # Try bundled template if not loaded
+    if system_prompt is None:
+        try:
+            bundled_path = get_bundled_system_template_path()
+            if bundled_path.exists():
+                template = bundled_path.read_text()
+                system_prompt = template.format(
+                    phase=phase.upper(),
+                    project_name=project_name,
+                )
+        except Exception as e:
+            logger.warning(f"Could not load bundled system template: {e}, using hardcoded")
+
+    # Fallback to hardcoded version
+    if system_prompt is None:
+        system_prompt = f"""You are an AI assistant working on the {project_name} project.
 
 You are currently in the **{phase.upper()}** phase of the development workflow.
 
@@ -252,6 +403,21 @@ Your work in this phase will be recorded and used as context for subsequent phas
 - Report any blockers or issues clearly
 - Follow existing code patterns and conventions
 """
+
+    # Append project's claude.md if configured
+    claude_md_path = request.get("prjclaudemd")
+    if claude_md_path:
+        try:
+            claude_md_file = Path(claude_md_path).expanduser().resolve()
+            if claude_md_file.exists():
+                claude_md_content = claude_md_file.read_text()
+                system_prompt += f"\n\n## Project-Specific Instructions (claude.md)\n\n{claude_md_content}"
+            else:
+                logger.warning(f"Project claude.md not found: {claude_md_path}")
+        except Exception as e:
+            logger.warning(f"Could not load project claude.md: {e}")
+
+    return system_prompt
 
 
 def save_to_docs(request: dict, content: str) -> str:

@@ -5,5 +5,8 @@
   "poll_interval": 30,
   "loop_paused": false,
   "max_iterations": 0,
-  "doc_retention_days": 30
+  "doc_retention_days": 30,
+  "commit_enabled": true,
+  "commit_branch_mode": "current",
+  "commit_branch_name": null
 }

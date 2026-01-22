@@ -61,6 +61,90 @@ def get_templates_path() -> Path:
         return dev_path
 
 
+# =============================================================================
+# Workspace Detection
+# =============================================================================
+
+
+def is_bw_workspace(path: Path) -> bool:
+    """Check if a directory looks like a BentWookie workspace.
+
+    Args:
+        path: Path to check.
+
+    Returns:
+        True if path appears to be a BentWookie workspace.
+    """
+    # Must have data/ directory with expected files
+    data_dir = path / "data"
+    if not data_dir.exists():
+        return False
+
+    # Check for key files that indicate initialization
+    db_file = data_dir / "bentwookie.db"
+    settings_file = data_dir / "settings.json"
+
+    # Must have at least one of these
+    return db_file.exists() or settings_file.exists()
+
+
+def find_bw_workspace() -> Path | None:
+    """Find BentWookie workspace by checking CWD, parent, and children.
+
+    Returns:
+        Path to workspace root, or None if not found.
+    """
+    cwd = Path.cwd()
+
+    # Check current directory
+    if is_bw_workspace(cwd):
+        return cwd
+
+    # Check parent directory
+    parent = cwd.parent
+    if parent != cwd and is_bw_workspace(parent):
+        return parent
+
+    # Check immediate children (one level only)
+    try:
+        for child in cwd.iterdir():
+            if child.is_dir() and is_bw_workspace(child):
+                return child
+    except PermissionError:
+        pass
+
+    return None
+
+
+def ensure_bw_workspace() -> Path:
+    """Ensure we're in a BentWookie workspace or can find one.
+
+    Raises:
+        click.ClickException: If no workspace found.
+
+    Returns:
+        Path to workspace root.
+    """
+    workspace = find_bw_workspace()
+    if workspace is None:
+        raise click.ClickException(
+            "No initialized BentWookie workspace found.\n\n"
+            "Searched:\n"
+            "  - Current directory\n"
+            "  - Parent directory\n"
+            "  - Child directories\n\n"
+            "Run 'bw init' to initialize this directory as a BentWookie workspace."
+        )
+
+    # Change to workspace directory if not already there
+    if workspace != Path.cwd():
+        import os
+        os.chdir(workspace)
+        click.echo(f"Using BentWookie workspace: {workspace}", err=True)
+
+    return workspace
+
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 def main(ctx: click.Context) -> None:
@@ -76,16 +160,6 @@ def main(ctx: click.Context) -> None:
       bw project create myproject      # Create a project
       bw request create myproject      # Create a request
       bw loop start                    # Start the daemon
-
-    \b
-    Commands:
-      bw init           Initialize the database
-      bw project ...    Manage projects
-      bw request ...    Manage requests
-      bw loop ...       Control the daemon
-      bw config ...     View or update configuration
-      bw status         Show current status
-      bw web            Start the web UI
     """
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
@@ -128,7 +202,33 @@ def init_cmd(db_path: Path, auth: str | None) -> None:
     # Ensure directories exist
     Path("data").mkdir(parents=True, exist_ok=True)
     Path("data/docs").mkdir(parents=True, exist_ok=True)
+    Path("data/prompts/phases").mkdir(parents=True, exist_ok=True)
     Path("logs").mkdir(parents=True, exist_ok=True)
+
+    # Copy template files from package to data/prompts/
+    import shutil
+    template_src_dir = Path(__file__).parent / "templates" / "phases"
+    template_dst_dir = Path("data/prompts/phases")
+
+    phase_names = ["plan", "dev", "test", "deploy", "verify", "document", "commit"]
+    templates_copied = 0
+
+    for phase in phase_names:
+        src = template_src_dir / f"{phase}.md"
+        dst = template_dst_dir / f"{phase}.md"
+        if src.exists() and not dst.exists():
+            shutil.copy2(src, dst)
+            templates_copied += 1
+
+    # Copy system prompt template
+    system_src = Path(__file__).parent / "templates" / "system.md"
+    system_dst = Path("data/prompts/system.md")
+    if system_src.exists() and not system_dst.exists():
+        shutil.copy2(system_src, system_dst)
+        templates_copied += 1
+
+    if templates_copied > 0:
+        click.echo(f"  ✓ Copied {templates_copied} prompt templates to data/prompts/")
 
     # Initialize database
     init_db()
@@ -162,7 +262,8 @@ def init_cmd(db_path: Path, auth: str | None) -> None:
 
     click.echo(f"\nDatabase initialized at: {db_path}")
     click.echo(f"Auth mode: {auth}")
-    click.echo("Created directories: data/, data/docs/, logs/")
+    click.echo("Created directories: data/, data/docs/, data/prompts/, logs/")
+    click.echo("\nℹ️  Prompt templates in data/prompts/ can be customized - changes take effect immediately")
 
     if auth == AUTH_MODE_API:
         click.echo("\nNote: Set ANTHROPIC_API_KEY environment variable before running the daemon.")
@@ -192,6 +293,12 @@ def project_group() -> None:
 @click.option("--phase", type=click.Choice(VALID_PROJECT_PHASES), default="dev", help="Project phase")
 @click.option("--desc", "-d", type=str, help="Project description")
 @click.option("--codedir", "-c", type=click.Path(path_type=Path), help="Code directory path")
+@click.option("--prompt", "-m", type=str, help="Project-level prompt/guidelines")
+@click.option("--claude-md", type=click.Path(exists=True), help="Path to claude.md file for project")
+@click.option("--model", type=click.Choice(VALID_MODELS), help="Claude model override (uses global setting if not specified)")
+@click.option("--commit/--no-commit", default=None, help="Enable/disable commit phase (overrides global)")
+@click.option("--commit-branch", type=click.Choice(["current", "other"]), help="Commit branch mode")
+@click.option("--commit-branch-name", type=str, help="Branch name when mode=other")
 def project_create(
     name: str,
     version: str,
@@ -199,6 +306,12 @@ def project_create(
     phase: str,
     desc: str | None,
     codedir: Path | None,
+    prompt: str | None,
+    claude_md: Path | None,
+    model: str | None,
+    commit: bool | None,
+    commit_branch: str | None,
+    commit_branch_name: str | None,
 ) -> None:
     """Create a new project.
 
@@ -208,7 +321,12 @@ def project_create(
       bw project create myapp --version mvp --priority 3
       bw project create myapp -d "My awesome app"
       bw project create myapp --codedir /path/to/code
+      bw project create myapp --prompt "Use type hints and docstrings"
+      bw project create myapp --claude-md /path/to/claude.md
     """
+    # Convert commit bool to int (None=use global, True=1, False=0)
+    prjcommitenabled = None if commit is None else (1 if commit else 0)
+
     try:
         prjid = create_project(
             prjname=name,
@@ -217,6 +335,12 @@ def project_create(
             prjphase=phase,
             prjdesc=desc,
             prjcodedir=str(codedir) if codedir else None,
+            prjprompt=prompt,
+            prjclaudemd=str(claude_md) if claude_md else None,
+            prjmodel=model,
+            prjcommitenabled=prjcommitenabled,
+            prjcommitbranchmode=commit_branch,
+            prjcommitbranchname=commit_branch_name,
         )
         click.echo(f"Project created: {name} (ID: {prjid})")
     except Exception as e:
@@ -235,6 +359,7 @@ def project_list(phase: str | None) -> None:
       bw project list
       bw project list --phase dev
     """
+    ensure_bw_workspace()
     projects = list_projects(phase=phase)
 
     if not projects:
@@ -262,6 +387,7 @@ def project_show(name_or_id: str) -> None:
       bw project show myapp
       bw project show 1
     """
+    ensure_bw_workspace()
     project = _get_project(name_or_id)
     if not project:
         raise click.ClickException(f"Project not found: {name_or_id}")
@@ -300,6 +426,7 @@ def project_delete(name_or_id: str, force: bool) -> None:
       bw project delete myapp
       bw project delete 1 --force
     """
+    ensure_bw_workspace()
     project = _get_project(name_or_id)
     if not project:
         raise click.ClickException(f"Project not found: {name_or_id}")
@@ -333,6 +460,8 @@ def request_group() -> None:
 @click.option("--type", "-t", "reqtype", type=click.Choice(VALID_REQUEST_TYPES), default="new_feature")
 @click.option("--priority", "-p", type=int, default=DEFAULT_PRIORITY, help="Priority (1-10)")
 @click.option("--codedir", type=click.Path(path_type=Path), help="Code sandbox directory")
+@click.option("--commit/--no-commit", default=None, help="Override commit phase for this request")
+@click.option("--commit-branch", help="Branch name for commit (overrides global)")
 def request_create(
     project: str,
     name: str,
@@ -340,6 +469,8 @@ def request_create(
     reqtype: str,
     priority: int,
     codedir: Path | None,
+    commit: bool | None,
+    commit_branch: str | None,
 ) -> None:
     """Create a new request for a project.
 
@@ -347,10 +478,17 @@ def request_create(
     Examples:
       bw request create myapp -n "Add login" -m "Implement user login with OAuth"
       bw request create myapp -n "Fix bug" -m "Fix the null pointer" -t bug_fix
+      bw request create myapp -n "Update" -m "Update docs" --no-commit
+      bw request create myapp -n "Feature" -m "New feature" --commit-branch develop
     """
     proj = _get_project(project)
     if not proj:
         raise click.ClickException(f"Project not found: {project}")
+
+    # Convert commit bool to int (0=disabled, 1=default, 2=forced)
+    reqcommitenabled = None
+    if commit is not None:
+        reqcommitenabled = 2 if commit else 0
 
     try:
         reqid = create_request(
@@ -360,6 +498,8 @@ def request_create(
             reqtype=reqtype,
             reqpriority=priority,
             reqcodedir=str(codedir) if codedir else None,
+            reqcommitenabled=reqcommitenabled,
+            reqcommitbranch=commit_branch,
         )
         click.echo(f"Request created: {name} (ID: {reqid})")
         click.echo("Phase: plan | Status: tbd")
@@ -385,6 +525,7 @@ def request_list(
       bw request list --status wip
       bw request list --phase dev
     """
+    ensure_bw_workspace()
     prjid = None
     if project_name:
         proj = _get_project(project_name)
@@ -818,6 +959,8 @@ def loop_start(
       bw loop start --foreground --debug
       bw loop start --poll 60 --log logs/{loopname}_{today}.log
     """
+    ensure_bw_workspace()
+
     from .loop.daemon import start_daemon
 
     click.echo(f"Starting BentWookie daemon (loop: {name})...")
@@ -849,6 +992,8 @@ def loop_stop() -> None:
     Examples:
       bw loop stop
     """
+    ensure_bw_workspace()
+
     import os
     import signal
 
@@ -878,6 +1023,8 @@ def loop_status() -> None:
     Examples:
       bw loop status
     """
+    ensure_bw_workspace()
+
     from .loop.daemon import is_daemon_running, read_pid_file
     from .settings import get_loop_settings
 
@@ -967,6 +1114,8 @@ def status_cmd() -> None:
     Examples:
       bw status
     """
+    ensure_bw_workspace()
+
     from .loop.daemon import is_daemon_running, read_pid_file
 
     click.echo("\nBentWookie Status")
@@ -1015,6 +1164,8 @@ def web_cmd(host: str, port: int, debug: bool) -> None:
       bw web --port 8080
       bw web --host 0.0.0.0 --debug
     """
+    ensure_bw_workspace()
+
     try:
         from .web.app import create_app
 
@@ -1033,8 +1184,18 @@ def web_cmd(host: str, port: int, debug: bool) -> None:
 @main.command("config")
 @click.option("--auth", type=click.Choice(["api", "max"]), help="Set auth mode")
 @click.option("--doc-retention", type=int, help="Days to retain docs (0 = keep forever)")
+@click.option("--commit/--no-commit", default=None, help="Enable/disable commit phase")
+@click.option("--commit-branch", type=click.Choice(["current", "other"]), help="Commit branch mode")
+@click.option("--commit-branch-name", help="Branch name (when mode=other)")
 @click.option("--show", is_flag=True, help="Show current settings")
-def config_cmd(auth: str | None, doc_retention: int | None, show: bool) -> None:
+def config_cmd(
+    auth: str | None,
+    doc_retention: int | None,
+    commit: bool | None,
+    commit_branch: str | None,
+    commit_branch_name: str | None,
+    show: bool,
+) -> None:
     """View or update configuration.
 
     \b
@@ -1044,8 +1205,19 @@ def config_cmd(auth: str | None, doc_retention: int | None, show: bool) -> None:
       bw config --auth api
       bw config --doc-retention 30
       bw config --doc-retention 0    # Disable auto-cleanup
+      bw config --commit              # Enable commit phase
+      bw config --no-commit           # Disable commit phase
+      bw config --commit-branch current
+      bw config --commit-branch other --commit-branch-name main
     """
-    from .settings import load_settings, save_settings, set_doc_retention_days
+    from .settings import (
+        load_settings,
+        save_settings,
+        set_doc_retention_days,
+        set_commit_enabled,
+        set_commit_branch_mode,
+        set_commit_branch_name,
+    )
 
     settings = load_settings()
     made_changes = False
@@ -1068,12 +1240,53 @@ def config_cmd(auth: str | None, doc_retention: int | None, show: bool) -> None:
             click.echo(f"Doc retention set to: {doc_retention} days")
         made_changes = True
 
+    if commit is not None:
+        set_commit_enabled(commit)
+        click.echo(f"Commit phase: {'enabled' if commit else 'disabled'}")
+        made_changes = True
+
+    if commit_branch:
+        set_commit_branch_mode(commit_branch)
+        click.echo(f"Commit branch mode: {commit_branch}")
+        made_changes = True
+
+    if commit_branch_name is not None:
+        set_commit_branch_name(commit_branch_name)
+        click.echo(f"Commit branch name: {commit_branch_name or '(none)'}")
+        made_changes = True
+
     if show or not made_changes:
         settings = load_settings()  # Reload to get updated values
+
+        # Setting descriptions
+        descriptions = {
+            "auth_mode": "Authentication mode (api = API key, max = Claude Max subscription)",
+            "model": "Claude model to use for all requests",
+            "max_turns": "Max Claude API calls per phase (prevents runaway loops)",
+            "poll_interval": "Seconds between daemon polls for new requests",
+            "loop_paused": "Whether daemon is paused (skips processing if True)",
+            "max_iterations": "Max requests to process before stopping (0 = unlimited)",
+            "doc_retention_days": "Days to keep generated docs (0 = keep forever)",
+            "commit_enabled": "Enable commit phase globally",
+            "commit_branch_mode": "Commit to 'current' branch or 'other' (specific branch)",
+            "commit_branch_name": "Specific branch name (when mode = other)",
+        }
+
         click.echo("\nCurrent Settings:")
-        click.echo("-" * 30)
+        click.echo("-" * 80)
+
+        # Find max key length for alignment
+        max_key_len = max(len(key) for key in settings.keys())
+        max_value_len = max(len(str(value)) for value in settings.values())
+
         for key, value in settings.items():
-            click.echo(f"  {key}: {value}")
+            desc = descriptions.get(key, "")
+            # Format: key: value  <- description
+            key_value = f"{key}: {value}".ljust(max_key_len + max_value_len + 2)
+            if desc:
+                click.echo(f"  {key_value}  <- {desc}")
+            else:
+                click.echo(f"  {key_value}")
 
 
 # =============================================================================

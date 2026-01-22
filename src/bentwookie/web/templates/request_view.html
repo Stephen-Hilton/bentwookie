@@ -42,8 +42,31 @@
         <dt>Code Directory</dt>
         <dd>{{ req.reqcodedir or '-' }}</dd>
 
-        <dt>Documentation</dt>
+        <dt>Plan Path</dt>
+        <dd>{{ req.reqplanpath or '-' }}</dd>
+
+        <dt>Test Plan Path</dt>
+        <dd>{{ req.reqtestplanpath or '-' }}</dd>
+
+        <dt>Documentation Path</dt>
         <dd>{{ req.reqdocpath or '-' }}</dd>
+
+        <dt>Test Retries</dt>
+        <dd>{{ req.reqtestretries or 0 }}</dd>
+
+        <dt>Commit Phase</dt>
+        <dd>
+            {% if req.reqcommitenabled == 0 %}
+            Disabled
+            {% elif req.reqcommitenabled == 2 %}
+            Force Enabled
+            {% else %}
+            Use Project/Global Setting
+            {% endif %}
+        </dd>
+
+        <dt>Commit Branch</dt>
+        <dd>{{ req.reqcommitbranch or 'Use Project/Global Setting' }}</dd>
 
         <dt>Last Updated</dt>
         <dd>{{ req.reqtouchts }}</dd>

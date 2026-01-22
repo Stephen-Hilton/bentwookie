@@ -9,11 +9,23 @@ CREATE TABLE IF NOT EXISTS project (
     prjphase TEXT DEFAULT 'dev',
     prjdesc TEXT,
     prjcodedir TEXT,
+    prjprompt TEXT,
+    prjclaudemd TEXT,
+    prjmodel TEXT,
+    prjcommitenabled INTEGER DEFAULT NULL,
+    prjcommitbranchmode TEXT,
+    prjcommitbranchname TEXT,
     prjtouchts TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Migration for existing databases:
 -- ALTER TABLE project ADD COLUMN prjcodedir TEXT;
+-- ALTER TABLE project ADD COLUMN prjprompt TEXT;
+-- ALTER TABLE project ADD COLUMN prjclaudemd TEXT;
+-- ALTER TABLE project ADD COLUMN prjmodel TEXT;
+-- ALTER TABLE project ADD COLUMN prjcommitenabled INTEGER DEFAULT NULL;
+-- ALTER TABLE project ADD COLUMN prjcommitbranchmode TEXT;
+-- ALTER TABLE project ADD COLUMN prjcommitbranchname TEXT;
 
 -- Requests table
 CREATE TABLE IF NOT EXISTS request (
@@ -31,6 +43,8 @@ CREATE TABLE IF NOT EXISTS request (
     reqtestplanpath TEXT,
     reqtestretries INTEGER DEFAULT 0,
     reqerror TEXT,
+    reqcommitenabled INTEGER DEFAULT 1,
+    reqcommitbranch TEXT,
     reqtouchts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (prjid) REFERENCES project(prjid)
 );
@@ -40,6 +54,8 @@ CREATE TABLE IF NOT EXISTS request (
 -- ALTER TABLE request ADD COLUMN reqtestplanpath TEXT;
 -- ALTER TABLE request ADD COLUMN reqtestretries INTEGER DEFAULT 0;
 -- ALTER TABLE request ADD COLUMN reqerror TEXT;
+-- ALTER TABLE request ADD COLUMN reqcommitenabled INTEGER DEFAULT 1;
+-- ALTER TABLE request ADD COLUMN reqcommitbranch TEXT;
 
 -- Infrastructure table (project-level)
 CREATE TABLE IF NOT EXISTS infrastructure (

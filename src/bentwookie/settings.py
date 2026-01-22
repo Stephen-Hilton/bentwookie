@@ -16,12 +16,15 @@ VALID_AUTH_MODES = [AUTH_MODE_API, AUTH_MODE_MAX]
 # Default settings
 DEFAULT_SETTINGS = {
     "auth_mode": AUTH_MODE_MAX,  # Default to Max since it's simpler
-    "model": "claude-sonnet-4-20250514",
+    "model": "claude-opus-4-5",
     "max_turns": 50,
     "poll_interval": 30,
     "loop_paused": False,
     "max_iterations": 0,  # 0 = unlimited
     "doc_retention_days": 30,  # Auto-cleanup docs older than this (0 = disabled)
+    "commit_enabled": True,  # Enable commit phase by default
+    "commit_branch_mode": "current",  # "current" or "other"
+    "commit_branch_name": None,  # Branch name when mode="other"
 }
 
 
@@ -110,6 +113,15 @@ def set_auth_mode(mode: str) -> None:
     if mode not in VALID_AUTH_MODES:
         raise ValueError(f"Invalid auth mode: {mode}. Must be one of: {VALID_AUTH_MODES}")
     set_setting("auth_mode", mode)
+
+
+def get_model() -> str:
+    """Get the model to use for Claude API calls.
+
+    Returns:
+        Model identifier string (e.g., 'claude-opus-4-5').
+    """
+    return get_setting("model", DEFAULT_SETTINGS["model"])
 
 
 # =============================================================================
@@ -240,3 +252,69 @@ def set_doc_retention_days(days: int) -> None:
         days: Number of days to retain docs (0 = disabled/keep forever).
     """
     set_setting("doc_retention_days", max(0, days))
+
+
+# =============================================================================
+# Commit Phase Settings
+# =============================================================================
+
+
+def get_commit_enabled() -> bool:
+    """Check if commit phase is enabled.
+
+    Returns:
+        True if commit phase is enabled, False otherwise.
+    """
+    return get_setting("commit_enabled", True)
+
+
+def set_commit_enabled(enabled: bool) -> None:
+    """Enable or disable the commit phase.
+
+    Args:
+        enabled: True to enable, False to disable.
+    """
+    set_setting("commit_enabled", enabled)
+
+
+def get_commit_branch_mode() -> str:
+    """Get the commit branch mode.
+
+    Returns:
+        "current" or "other"
+    """
+    return get_setting("commit_branch_mode", "current")
+
+
+def set_commit_branch_mode(mode: str) -> None:
+    """Set the commit branch mode.
+
+    Args:
+        mode: "current" to commit to current branch, "other" to commit to specific branch.
+
+    Raises:
+        ValueError: If mode is invalid.
+    """
+    from .constants import VALID_COMMIT_BRANCHES
+
+    if mode not in VALID_COMMIT_BRANCHES:
+        raise ValueError(f"Invalid mode: {mode}. Must be one of: {VALID_COMMIT_BRANCHES}")
+    set_setting("commit_branch_mode", mode)
+
+
+def get_commit_branch_name() -> str | None:
+    """Get the branch name to commit to (when mode="other").
+
+    Returns:
+        Branch name or None if not set.
+    """
+    return get_setting("commit_branch_name")
+
+
+def set_commit_branch_name(name: str | None) -> None:
+    """Set the branch name to commit to.
+
+    Args:
+        name: Branch name or None to clear.
+    """
+    set_setting("commit_branch_name", name)

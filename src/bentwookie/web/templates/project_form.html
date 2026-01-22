@@ -55,6 +55,68 @@
         <small class="help-text">Default code directory for requests in this project</small>
     </div>
 
+    <div class="form-group">
+        <label for="prompt">Project Prompt/Guidelines (optional)</label>
+        <textarea id="prompt" name="prompt" rows="4"
+                  placeholder="Default instructions for all requests in this project...">{{ project.prjprompt if project else '' }}</textarea>
+        <small class="help-text">Optional. These guidelines will be included in every request.</small>
+    </div>
+
+    <div class="form-group">
+        <label for="claude_md_path">Claude.md File Path (optional)</label>
+        <input type="text" id="claude_md_path" name="claude_md_path"
+               value="{{ project.prjclaudemd if project else '' }}"
+               placeholder="/path/to/project/claude.md">
+        <small class="help-text">Absolute path to a claude.md file with project-specific instructions.</small>
+    </div>
+
+    <div class="form-group">
+        <label for="model">Claude Model (optional)</label>
+        <select id="model" name="model">
+            <option value="" {% if not project or not project.prjmodel %}selected{% endif %}>Use Global Setting</option>
+            {% for m in VALID_MODELS %}
+            <option value="{{ m }}" {% if project and project.prjmodel == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+        <small class="help-text">Override global model setting for this project</small>
+    </div>
+
+    <div class="form-group">
+        <label for="commit_enabled">Commit Phase</label>
+        <select id="commit_enabled" name="commit_enabled">
+            <option value="" {% if project and project.prjcommitenabled is none %}selected{% elif not project %}selected{% endif %}>Use Global Setting</option>
+            <option value="1" {% if project and project.prjcommitenabled == 1 %}selected{% endif %}>Enabled</option>
+            <option value="0" {% if project and project.prjcommitenabled == 0 %}selected{% endif %}>Disabled</option>
+        </select>
+        <small class="help-text">Override global commit phase setting for this project</small>
+    </div>
+
+    <div class="form-group">
+        <label for="commit_branch_mode">Commit Branch Mode</label>
+        <select id="commit_branch_mode" name="commit_branch_mode">
+            <option value="" {% if project and not project.prjcommitbranchmode %}selected{% elif not project %}selected{% endif %}>Use Global Setting</option>
+            <option value="current" {% if project and project.prjcommitbranchmode == 'current' %}selected{% endif %}>Current Branch</option>
+            <option value="other" {% if project and project.prjcommitbranchmode == 'other' %}selected{% endif %}>Other Branch</option>
+        </select>
+        <small class="help-text">Which branch to commit to</small>
+    </div>
+
+    <div class="form-group" id="branch-name-group" style="{% if project and project.prjcommitbranchmode == 'other' %}display:block{% else %}display:none{% endif %}">
+        <label for="commit_branch_name">Branch Name</label>
+        <input type="text" id="commit_branch_name" name="commit_branch_name"
+               value="{{ project.prjcommitbranchname if project else '' }}"
+               placeholder="e.g., main, develop">
+        <small class="help-text">Branch name when mode is "Other Branch"</small>
+    </div>
+
+    <script>
+    // Show/hide branch name field based on mode selection
+    document.getElementById('commit_branch_mode').addEventListener('change', function(e) {
+        const nameGroup = document.getElementById('branch-name-group');
+        nameGroup.style.display = e.target.value === 'other' ? 'block' : 'none';
+    });
+    </script>
+
     <div class="button-group">
         <button type="submit" class="btn btn-primary">
             {% if project %}Update{% else %}Create{% endif %}

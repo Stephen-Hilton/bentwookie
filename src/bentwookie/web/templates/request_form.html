@@ -66,6 +66,24 @@
                placeholder="/path/to/project">
     </div>
 
+    <div class="form-group">
+        <label for="commit_mode">Commit Override</label>
+        <select id="commit_mode" name="commit_mode">
+            <option value="1" {% if not req or req.reqcommitenabled == 1 or req.reqcommitenabled is none %}selected{% endif %}>Use Project/Global Setting</option>
+            <option value="0" {% if req and req.reqcommitenabled == 0 %}selected{% endif %}>Disabled</option>
+            <option value="2" {% if req and req.reqcommitenabled == 2 %}selected{% endif %}>Force Enabled</option>
+        </select>
+        <small class="help-text">Override project/global commit phase setting for this request</small>
+    </div>
+
+    <div class="form-group">
+        <label for="commit_branch">Commit Branch Override (optional)</label>
+        <input type="text" id="commit_branch" name="commit_branch"
+               value="{{ req.reqcommitbranch if req else '' }}"
+               placeholder="Leave empty to use project/global setting">
+        <small class="help-text">Specific branch for this request's commit</small>
+    </div>
+
     <div class="button-group">
         <button type="submit" class="btn btn-primary">
             {% if req %}Update{% else %}Create{% endif %}

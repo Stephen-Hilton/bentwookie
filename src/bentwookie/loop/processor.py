@@ -9,7 +9,6 @@ from pathlib import Path
 
 from ..constants import (
     DAEMON_MAX_TURNS,
-    DEFAULT_MODEL,
     DEFAULT_PERMISSION_MODE,
     STATUS_DONE,
     STATUS_ERR,
@@ -17,6 +16,7 @@ from ..constants import (
     STATUS_TMOUT,
     STATUS_WIP,
 )
+from ..settings import get_model, get_setting
 
 # Rate limit handling
 MAX_RETRIES = 3
@@ -323,28 +323,46 @@ async def process_request(request: dict) -> bool:
         # 2. Project prjcodedir (if set)
         # 3. Create CWD/project_name subfolder (auto-created)
         code_dir = request.get("reqcodedir")
+        user_provided_path = bool(code_dir)
         if not code_dir:
             code_dir = request.get("prjcodedir")
+            user_provided_path = bool(code_dir)
         if not code_dir:
             # Create project-named subfolder in CWD
             project_name = request.get("prjname", "project")
             code_dir = os.path.join(os.getcwd(), project_name)
-            # Auto-create the directory if it doesn't exist
-            Path(code_dir).mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created project code directory: {code_dir}")
+            user_provided_path = False
 
-        cwd = str(Path(code_dir).resolve())
+        # Expand ~ and resolve to absolute path
+        cwd = str(Path(code_dir).expanduser().resolve())
+
+        # Validate or create directory
+        if not Path(cwd).exists():
+            if user_provided_path:
+                raise ValueError(
+                    f"Code directory does not exist: {cwd}\n"
+                    f"Original path: {code_dir}\n"
+                    "Please create the directory or update the project/request codedir."
+                )
+            else:
+                # Auto-create the directory for project subfolder
+                Path(cwd).mkdir(parents=True, exist_ok=True)
+                logger.info(f"Created project code directory: {cwd}")
 
         # Configure Claude SDK
+        # Use project model if set, otherwise global setting
+        model = request.get("prjmodel") or get_model()
+        max_turns = get_setting("max_turns", DAEMON_MAX_TURNS)
         options = ClaudeAgentOptions(
-            model=DEFAULT_MODEL,
+            model=model,
             cwd=cwd,
             system_prompt=get_system_prompt(request),
             allowed_tools=get_phase_tools(phase),
             permission_mode=DEFAULT_PERMISSION_MODE,
-            max_turns=DAEMON_MAX_TURNS,
+            max_turns=max_turns,
         )
 
+        logger.info(f"Using model: {model}")
         logger.info(f"Using cwd: {cwd}")
 
         # Set timeout
@@ -444,6 +462,24 @@ async def process_request(request: dict) -> bool:
             # Keep status as TBD so it gets retried
             queries.update_request_status(reqid, STATUS_TBD)
             return False
+
+        # Special handling for commit phase - never mark as error
+        if phase == "commit":
+            logger.warning(f"Request {reqid} commit phase had errors but continuing: {error_msg}")
+            queries.update_request_error(reqid, f"Commit phase warning: {error_msg}")
+
+            # Advance to next phase regardless of errors
+            next_phase = get_next_phase(phase, reqid)
+            if next_phase and next_phase != "complete":
+                queries.update_request_phase(reqid, next_phase)
+                queries.update_request_status(reqid, STATUS_TBD)
+                logger.info(f"Request {reqid} advanced to phase: {next_phase} (after commit warnings)")
+            else:
+                queries.update_request_phase(reqid, "complete")
+                queries.update_request_status(reqid, STATUS_DONE)
+                logger.info(f"Request {reqid} completed all phases (with commit warnings)")
+
+            return True
 
         # Build user-friendly error message
         friendly_error = error_msg

@@ -5,7 +5,7 @@
 # =============================================================================
 
 # Phase names in order of progression
-PHASES = ["plan", "dev", "test", "deploy", "verify", "document", "complete"]
+PHASES = ["plan", "dev", "test", "deploy", "verify", "document", "commit", "complete"]
 
 # Phase progression mapping (phase -> order index)
 PHASE_ORDER = {
@@ -15,7 +15,8 @@ PHASE_ORDER = {
     "deploy": 3,
     "verify": 4,
     "document": 5,
-    "complete": 6,
+    "commit": 6,
+    "complete": 7,
 }
 
 # Next phase mapping
@@ -25,7 +26,8 @@ NEXT_PHASE = {
     "test": "deploy",
     "deploy": "verify",
     "verify": "document",
-    "document": "complete",
+    "document": "commit",
+    "commit": "complete",
     "complete": None,
 }
 
@@ -37,6 +39,7 @@ PHASE_NAMES = {
     "deploy": "Deployment",
     "verify": "Verification",
     "document": "Documentation",
+    "commit": "Commit",
     "complete": "Complete",
 }
 
@@ -157,6 +160,7 @@ TIMEOUT_TEST = 1 * 60 * 60   # 1 hour
 TIMEOUT_DEPLOY = 30 * 60     # 30 minutes
 TIMEOUT_VERIFY = 30 * 60     # 30 minutes
 TIMEOUT_DOCUMENT = 30 * 60   # 30 minutes
+TIMEOUT_COMMIT = 10 * 60     # 10 minutes
 
 PHASE_TIMEOUTS = {
     "plan": TIMEOUT_PLAN,
@@ -165,6 +169,7 @@ PHASE_TIMEOUTS = {
     "deploy": TIMEOUT_DEPLOY,
     "verify": TIMEOUT_VERIFY,
     "document": TIMEOUT_DOCUMENT,
+    "commit": TIMEOUT_COMMIT,
 }
 
 # Daemon settings
@@ -184,8 +189,18 @@ DEFAULT_DOC_RETENTION_DAYS = 30  # Auto-cleanup docs older than this
 # Claude SDK Settings
 # =============================================================================
 
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-opus-4-5"
 DEFAULT_PERMISSION_MODE = "acceptEdits"
+
+# Valid Claude models
+VALID_MODELS = [
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4",
+    "claude-opus-4",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-opus-20240229",
+]
 
 # Tools allowed per phase
 PHASE_TOOLS = {
@@ -195,7 +210,17 @@ PHASE_TOOLS = {
     "deploy": ["Bash"],
     "verify": ["Read", "Bash", "WebFetch", "Glob", "Grep"],
     "document": ["Read", "Write"],
+    "commit": ["Bash", "Read", "Grep"],  # Need Bash for git, Read/Grep for analysis
 }
+
+# =============================================================================
+# Commit Phase Options
+# =============================================================================
+
+# Commit branch modes
+COMMIT_BRANCH_CURRENT = "current"  # Commit to current branch
+COMMIT_BRANCH_OTHER = "other"      # Commit to specific branch
+VALID_COMMIT_BRANCHES = [COMMIT_BRANCH_CURRENT, COMMIT_BRANCH_OTHER]
 
 # =============================================================================
 # Legacy Constants (kept for backwards compatibility during migration)

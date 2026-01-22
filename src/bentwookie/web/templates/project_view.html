@@ -43,6 +43,38 @@
         <dt>Description</dt>
         <dd>{{ project.prjdesc or '-' }}</dd>
 
+        <dt>Project Prompt</dt>
+        <dd>{{ project.prjprompt or '-' }}</dd>
+
+        <dt>Claude.md Path</dt>
+        <dd>{{ project.prjclaudemd or '-' }}</dd>
+
+        <dt>Claude Model</dt>
+        <dd>{{ project.prjmodel or 'Use Global Setting' }}</dd>
+
+        <dt>Commit Phase</dt>
+        <dd>
+            {% if project.prjcommitenabled is none %}
+            Use Global Setting
+            {% elif project.prjcommitenabled == 1 %}
+            Enabled
+            {% else %}
+            Disabled
+            {% endif %}
+        </dd>
+
+        <dt>Commit Branch Mode</dt>
+        <dd>
+            {% if project.prjcommitbranchmode %}
+            {{ project.prjcommitbranchmode|title }}
+            {% if project.prjcommitbranchmode == 'other' and project.prjcommitbranchname %}
+            ({{ project.prjcommitbranchname }})
+            {% endif %}
+            {% else %}
+            Use Global Setting
+            {% endif %}
+        </dd>
+
         <dt>Last Updated</dt>
         <dd>{{ project.prjtouchts }}</dd>
     </dl>

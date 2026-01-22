@@ -16,6 +16,12 @@ def create_project(
     prjphase: str = "dev",
     prjdesc: str | None = None,
     prjcodedir: str | None = None,
+    prjprompt: str | None = None,
+    prjclaudemd: str | None = None,
+    prjmodel: str | None = None,
+    prjcommitenabled: int | None = None,
+    prjcommitbranchmode: str | None = None,
+    prjcommitbranchname: str | None = None,
 ) -> int:
     """Create a new project.
 
@@ -26,6 +32,12 @@ def create_project(
         prjphase: Project phase (dev, qa, uat, prod).
         prjdesc: Optional project description.
         prjcodedir: Optional code directory path.
+        prjprompt: Optional project-level prompt/guidelines.
+        prjclaudemd: Optional path to claude.md file.
+        prjmodel: Optional Claude model override (None=use global setting).
+        prjcommitenabled: Commit phase override (0=disabled, 1=enabled, None=use global).
+        prjcommitbranchmode: Branch mode override (current/other, None=use global).
+        prjcommitbranchname: Branch name override (None=use global).
 
     Returns:
         The new project ID.
@@ -33,10 +45,12 @@ def create_project(
     with get_db() as conn:
         cursor = conn.execute(
             """
-            INSERT INTO project (prjname, prjversion, prjpriority, prjphase, prjdesc, prjcodedir)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO project (prjname, prjversion, prjpriority, prjphase, prjdesc, prjcodedir, prjprompt, prjclaudemd,
+                                prjmodel, prjcommitenabled, prjcommitbranchmode, prjcommitbranchname)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (prjname, prjversion, prjpriority, prjphase, prjdesc, prjcodedir),
+            (prjname, prjversion, prjpriority, prjphase, prjdesc, prjcodedir, prjprompt, prjclaudemd,
+             prjmodel, prjcommitenabled, prjcommitbranchmode, prjcommitbranchname),
         )
         return cursor.lastrowid  # type: ignore
 
@@ -109,6 +123,12 @@ def update_project(
     prjphase: str | None = None,
     prjdesc: str | None = None,
     prjcodedir: str | None = None,
+    prjprompt: str | None = None,
+    prjclaudemd: str | None = None,
+    prjmodel: str | None = None,
+    prjcommitenabled: int | None = None,
+    prjcommitbranchmode: str | None = None,
+    prjcommitbranchname: str | None = None,
 ) -> bool:
     """Update a project.
 
@@ -120,6 +140,12 @@ def update_project(
         prjphase: New phase (optional).
         prjdesc: New description (optional).
         prjcodedir: New code directory (optional).
+        prjprompt: New project prompt (optional).
+        prjclaudemd: New claude.md path (optional).
+        prjmodel: Claude model override (optional).
+        prjcommitenabled: Commit phase override (optional).
+        prjcommitbranchmode: Branch mode override (optional).
+        prjcommitbranchname: Branch name override (optional).
 
     Returns:
         True if project was updated, False if not found.
@@ -145,6 +171,24 @@ def update_project(
     if prjcodedir is not None:
         updates.append("prjcodedir = ?")
         values.append(prjcodedir)
+    if prjprompt is not None:
+        updates.append("prjprompt = ?")
+        values.append(prjprompt)
+    if prjclaudemd is not None:
+        updates.append("prjclaudemd = ?")
+        values.append(prjclaudemd)
+    if prjmodel is not None:
+        updates.append("prjmodel = ?")
+        values.append(prjmodel)
+    if prjcommitenabled is not None:
+        updates.append("prjcommitenabled = ?")
+        values.append(prjcommitenabled)
+    if prjcommitbranchmode is not None:
+        updates.append("prjcommitbranchmode = ?")
+        values.append(prjcommitbranchmode)
+    if prjcommitbranchname is not None:
+        updates.append("prjcommitbranchname = ?")
+        values.append(prjcommitbranchname)
 
     if not updates:
         return False
@@ -193,6 +237,8 @@ def create_request(
     reqphase: str = "plan",
     reqpriority: int = 5,
     reqcodedir: str | None = None,
+    reqcommitenabled: int | None = None,
+    reqcommitbranch: str | None = None,
 ) -> int:
     """Create a new request.
 
@@ -202,9 +248,11 @@ def create_request(
         reqprompt: The prompt/description for this request.
         reqtype: Type (new_feature, bug_fix, enhancement).
         reqstatus: Status (tbd, wip, done, err, tmout).
-        reqphase: Phase (plan, dev, test, deploy, verify, document, complete).
+        reqphase: Phase (plan, dev, test, deploy, verify, document, commit, complete).
         reqpriority: Priority level (1-10).
         reqcodedir: Optional sandbox directory for code changes.
+        reqcommitenabled: Commit phase override (0=disabled, 1=use default, 2=force enabled).
+        reqcommitbranch: Branch name override for commit phase.
 
     Returns:
         The new request ID.
@@ -213,10 +261,10 @@ def create_request(
         cursor = conn.execute(
             """
             INSERT INTO request
-            (prjid, reqname, reqprompt, reqtype, reqstatus, reqphase, reqpriority, reqcodedir)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (prjid, reqname, reqprompt, reqtype, reqstatus, reqphase, reqpriority, reqcodedir, reqcommitenabled, reqcommitbranch)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (prjid, reqname, reqprompt, reqtype, reqstatus, reqphase, reqpriority, reqcodedir),
+            (prjid, reqname, reqprompt, reqtype, reqstatus, reqphase, reqpriority, reqcodedir, reqcommitenabled, reqcommitbranch),
         )
         return cursor.lastrowid  # type: ignore
 
@@ -494,6 +542,8 @@ def update_request(
     reqtype: str | None = None,
     reqpriority: int | None = None,
     reqcodedir: str | None = None,
+    reqcommitenabled: int | None = None,
+    reqcommitbranch: str | None = None,
 ) -> bool:
     """Update a request (full field updates).
 
@@ -506,6 +556,8 @@ def update_request(
         reqtype: New type (optional).
         reqpriority: New priority (optional).
         reqcodedir: New code directory (optional).
+        reqcommitenabled: Commit phase override (optional).
+        reqcommitbranch: Commit branch override (optional).
 
     Returns:
         True if request was updated, False if not found.
@@ -528,6 +580,12 @@ def update_request(
     if reqcodedir is not None:
         updates.append("reqcodedir = ?")
         values.append(reqcodedir)
+    if reqcommitenabled is not None:
+        updates.append("reqcommitenabled = ?")
+        values.append(reqcommitenabled)
+    if reqcommitbranch is not None:
+        updates.append("reqcommitbranch = ?")
+        values.append(reqcommitbranch)
 
     if not updates:
         return False
