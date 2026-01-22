@@ -1,0 +1,15 @@
+# Include documentation
+include README.md
+include CHANGELOG.md
+include LICENSE
+
+# Include package data
+recursive-include src/bentwookie/templates *
+recursive-include src/bentwookie/db *.sql
+recursive-include src/bentwookie/web/templates *.html
+recursive-include src/bentwookie/web/static *.css *.png
+
+# Exclude unwanted files
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .DS_Store

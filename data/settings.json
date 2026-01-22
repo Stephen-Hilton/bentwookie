@@ -1,0 +1,9 @@
+{
+  "auth_mode": "max",
+  "model": "claude-opus-4-5",
+  "max_turns": 120,
+  "poll_interval": 30,
+  "loop_paused": false,
+  "max_iterations": 0,
+  "doc_retention_days": 30
+}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title_suffix %} - {% if project %}Edit{% else %}New{% endif %} Project{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>
+        <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
+        {% if project %}Edit{% else %}New{% endif %} Project
+    </h1>
+</div>
+
+<form method="POST" class="form">
+    <div class="form-group">
+        <label for="name">Name *</label>
+        <input type="text" id="name" name="name" required
+               value="{{ project.prjname if project else '' }}"
+               placeholder="my-project">
+    </div>
+
+    <div class="form-group">
+        <label for="version">Version</label>
+        <select id="version" name="version">
+            {% for v in VALID_VERSIONS %}
+            <option value="{{ v }}" {% if project and project.prjversion == v %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="priority">Priority (1-10)</label>
+        <input type="number" id="priority" name="priority" min="1" max="10"
+               value="{{ project.prjpriority if project else 5 }}">
+    </div>
+
+    <div class="form-group">
+        <label for="phase">Phase</label>
+        <select id="phase" name="phase">
+            {% for p in VALID_PROJECT_PHASES %}
+            <option value="{{ p }}" {% if project and project.prjphase == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="desc">Description</label>
+        <textarea id="desc" name="desc" rows="3"
+                  placeholder="Project description...">{{ project.prjdesc if project else '' }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="codedir">Code Directory (optional)</label>
+        <input type="text" id="codedir" name="codedir"
+               value="{{ project.prjcodedir if project else '' }}"
+               placeholder="/path/to/project/code">
+        <small class="help-text">Default code directory for requests in this project</small>
+    </div>
+
+    <div class="button-group">
+        <button type="submit" class="btn btn-primary">
+            {% if project %}Update{% else %}Create{% endif %}
+        </button>
+        <a href="{{ url_for('projects_list') }}" class="btn">Cancel</a>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Projects{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>
+        <img src="{{ url_for('static', filename='icons/ui_viewproject.png') }}" alt="">
+        Projects
+    </h1>
+    <a href="{{ url_for('project_new') }}" class="btn btn-primary">
+        <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
+        New Project
+    </a>
+</div>
+
+{% if projects %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Version</th>
+            <th>Priority</th>
+            <th>Phase</th>
+            <th>Requests</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in projects %}
+        <tr>
+            <td>{{ p.prjid }}</td>
+            <td><a href="{{ url_for('project_view', prjid=p.prjid) }}">{{ p.prjname }}</a></td>
+            <td>{{ p.prjversion }}</td>
+            <td>{{ p.prjpriority }}</td>
+            <td>{{ p.prjphase }}</td>
+            <td>{{ p.request_count }} ({{ p.pending_count }} pending)</td>
+            <td>
+                <a href="{{ url_for('project_view', prjid=p.prjid) }}" class="btn btn-sm">
+                    <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
+                    View
+                </a>
+                <a href="{{ url_for('project_edit', prjid=p.prjid) }}" class="btn btn-sm">
+                    <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
+                    Edit
+                </a>
+                <form action="{{ url_for('project_delete_route', prjid=p.prjid) }}" method="POST" style="display:inline;"
+                      onsubmit="return confirm('Delete project {{ p.prjname }}?');">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty-state">No projects yet. <a href="{{ url_for('project_new') }}">Create one</a></p>
+{% endif %}
+{% endblock %}

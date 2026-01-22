@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title_suffix %} - {{ project.prjname }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>
+        <img src="{{ url_for('static', filename='icons/ui_viewproject.png') }}" alt="">
+        {{ project.prjname }}
+    </h1>
+    <div class="button-group">
+        <a href="{{ url_for('request_new') }}?project={{ project.prjid }}" class="btn btn-primary">
+            <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
+            New Request
+        </a>
+        <a href="{{ url_for('project_edit', prjid=project.prjid) }}" class="btn">
+            <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
+            Edit
+        </a>
+        <form action="{{ url_for('project_delete_route', prjid=project.prjid) }}" method="POST" style="display:inline;"
+              onsubmit="return confirm('Delete project {{ project.prjname }}?');">
+            <button type="submit" class="btn btn-danger">Delete Project</button>
+        </form>
+    </div>
+</div>
+
+<div class="detail-card">
+    <dl class="detail-list">
+        <dt>ID</dt>
+        <dd>{{ project.prjid }}</dd>
+
+        <dt>Version</dt>
+        <dd>{{ project.prjversion }}</dd>
+
+        <dt>Priority</dt>
+        <dd>{{ project.prjpriority }}</dd>
+
+        <dt>Phase</dt>
+        <dd>{{ project.prjphase }}</dd>
+
+        <dt>Code Directory</dt>
+        <dd>{{ project.prjcodedir or '-' }}</dd>
+
+        <dt>Description</dt>
+        <dd>{{ project.prjdesc or '-' }}</dd>
+
+        <dt>Last Updated</dt>
+        <dd>{{ project.prjtouchts }}</dd>
+    </dl>
+</div>
+
+<section class="section">
+    <h2>
+        <img src="{{ url_for('static', filename='icons/ui_pipeline.png') }}" alt="">
+        Infrastructure
+    </h2>
+
+    {% if infrastructure %}
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Provider</th>
+                <th>Value</th>
+                <th>Note</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inf in infrastructure %}
+            <tr>
+                <td>{{ inf.inftype }}</td>
+                <td>{{ inf.infprovider }}</td>
+                <td>{{ inf.infval or '-' }}</td>
+                <td>{{ inf.infnote or '-' }}</td>
+                <td>
+                    <form action="{{ url_for('infrastructure_delete', infid=inf.infid) }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="prjid" value="{{ project.prjid }}">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this infrastructure?');">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No infrastructure configured.</p>
+    {% endif %}
+
+    <details class="add-form-toggle">
+        <summary class="btn btn-sm">Add Infrastructure</summary>
+        <form action="{{ url_for('project_infrastructure_add', prjid=project.prjid) }}" method="POST" class="form inline-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="inftype">Type</label>
+                    <select id="inftype" name="inftype" required>
+                        {% for t in VALID_INFRA_TYPES %}
+                        <option value="{{ t }}">{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="infprovider">Provider</label>
+                    <select id="infprovider" name="infprovider">
+                        {% for p in VALID_PROVIDERS %}
+                        <option value="{{ p }}">{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="infval">Value</label>
+                    <input type="text" id="infval" name="infval" placeholder="e.g., t2.micro, s3://bucket">
+                </div>
+                <div class="form-group">
+                    <label for="infnote">Note</label>
+                    <input type="text" id="infnote" name="infnote" placeholder="Optional note">
+                </div>
+                <div class="form-group form-actions">
+                    <button type="submit" class="btn btn-primary btn-sm">Add</button>
+                </div>
+            </div>
+        </form>
+    </details>
+</section>
+
+<section class="section">
+    <h2>
+        <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
+        Requests ({{ requests|length }})
+    </h2>
+
+    {% if requests %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Phase</th>
+                <th>Status</th>
+                <th>Priority</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in requests %}
+            <tr>
+                <td><a href="{{ url_for('request_view', reqid=r.reqid) }}">{{ r.reqid }}</a></td>
+                <td>{{ r.reqname }}</td>
+                <td>{{ TYPE_NAMES.get(r.reqtype, r.reqtype) }}</td>
+                <td><span class="badge badge-phase">{{ PHASE_NAMES.get(r.reqphase, r.reqphase) }}</span></td>
+                <td><span class="badge badge-{{ r.reqstatus }}">{{ STATUS_NAMES.get(r.reqstatus, r.reqstatus) }}</span></td>
+                <td>{{ r.reqpriority }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No requests yet. <a href="{{ url_for('request_new') }}?project={{ project.prjid }}">Create one</a></p>
+    {% endif %}
+</section>
+{% endblock %}

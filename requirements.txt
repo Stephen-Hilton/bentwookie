@@ -1,0 +1,12 @@
+click
+pyyaml
+python-dotenv
+questionary
+flask
+claude-agent-sdk
+
+pytest
+pytest-cov
+black
+ruff
+mypy
