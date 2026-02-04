@@ -43,6 +43,17 @@ Create or update documentation for the implemented feature:
 - Keep documentation concise but complete
 - Use clear, accessible language
 
+## Document Tracking
+
+When you create or update any document files, report them using this format:
+[DOC:filename] path: /full/path/to/filename
+
+For example:
+[DOC:README.md] path: /project/working/dir/README.md
+[DOC:API_DOCS.md] path: /project/working/dir/docs/API_DOCS.md
+
+This allows the system to track all documents generated during this phase.
+
 ## Output
 
 Provide a summary including:

@@ -25,77 +25,67 @@ def temp_db():
         db_path.unlink()
 
 
-@pytest.fixture
-def temp_pid_file(monkeypatch):
-    """Create a temporary directory for PID file."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        pid_path = Path(tmpdir) / "daemon.pid"
-        monkeypatch.setattr(daemon, "PID_FILE", pid_path)
-        yield pid_path
+class TestPidOperations:
+    """Tests for PID database operations."""
 
+    def test_write_pid(self, temp_db):
+        """Test writing PID to database."""
+        daemon.write_pid("test_loop")
 
-class TestPidFileOperations:
-    """Tests for PID file operations."""
-
-    def test_write_pid_file(self, temp_pid_file):
-        """Test writing PID to file."""
-        daemon.write_pid_file()
-
-        assert temp_pid_file.exists()
-        pid = int(temp_pid_file.read_text().strip())
+        pid = daemon.read_pid()
         assert pid == os.getpid()
 
-    def test_read_pid_file(self, temp_pid_file):
-        """Test reading PID from file."""
-        temp_pid_file.write_text("12345")
+    def test_read_pid(self, temp_db):
+        """Test reading PID from database."""
+        from bentwookie.db import set_daemon_pid
+        set_daemon_pid(12345, "test_loop")
 
-        pid = daemon.read_pid_file()
+        pid = daemon.read_pid()
         assert pid == 12345
 
-    def test_read_pid_file_not_exists(self, temp_pid_file):
-        """Test reading PID when file doesn't exist."""
-        pid = daemon.read_pid_file()
+    def test_read_pid_not_set(self, temp_db):
+        """Test reading PID when not set."""
+        pid = daemon.read_pid()
         assert pid is None
 
-    def test_read_pid_file_invalid(self, temp_pid_file):
-        """Test reading PID when file contains invalid content."""
-        temp_pid_file.write_text("not a number")
+    def test_clear_pid(self, temp_db):
+        """Test clearing PID from database."""
+        daemon.write_pid("test_loop")
+        assert daemon.read_pid() is not None
 
-        pid = daemon.read_pid_file()
-        assert pid is None
+        daemon.clear_pid()
+        assert daemon.read_pid() is None
 
-    def test_remove_pid_file(self, temp_pid_file):
-        """Test removing PID file."""
-        temp_pid_file.write_text("12345")
+    def test_legacy_aliases(self, temp_db):
+        """Test legacy function aliases work."""
+        daemon.write_pid_file()
+        assert daemon.read_pid_file() == os.getpid()
 
         daemon.remove_pid_file()
-        assert not temp_pid_file.exists()
-
-    def test_remove_pid_file_not_exists(self, temp_pid_file):
-        """Test removing PID file when it doesn't exist."""
-        # Should not raise
-        daemon.remove_pid_file()
+        assert daemon.read_pid_file() is None
 
 
 class TestIsDaemonRunning:
     """Tests for is_daemon_running function."""
 
-    def test_daemon_not_running_no_pid_file(self, temp_pid_file):
-        """Test daemon not running when no PID file."""
+    def test_daemon_not_running_no_pid(self, temp_db):
+        """Test daemon not running when no PID set."""
         result = daemon.is_daemon_running()
         assert result is False
 
-    def test_daemon_not_running_stale_pid(self, temp_pid_file):
+    def test_daemon_not_running_stale_pid(self, temp_db):
         """Test daemon not running with stale PID."""
+        from bentwookie.db import set_daemon_pid
         # Write a PID that definitely doesn't exist
-        temp_pid_file.write_text("999999999")
+        set_daemon_pid(999999999, "test_loop")
 
         result = daemon.is_daemon_running()
         assert result is False
 
-    def test_daemon_running_valid_pid(self, temp_pid_file):
+    def test_daemon_running_valid_pid(self, temp_db):
         """Test daemon running with valid PID (current process)."""
-        temp_pid_file.write_text(str(os.getpid()))
+        from bentwookie.db import set_daemon_pid
+        set_daemon_pid(os.getpid(), "test_loop")
 
         result = daemon.is_daemon_running()
         assert result is True
@@ -104,12 +94,12 @@ class TestIsDaemonRunning:
 class TestBentWookieDaemon:
     """Tests for BentWookieDaemon class."""
 
-    def test_daemon_init(self, temp_db, temp_pid_file):
+    def test_daemon_init(self, temp_db):
         """Test daemon initialization."""
         d = daemon.BentWookieDaemon()
         assert d is not None
 
-    def test_daemon_init_with_options(self, temp_db, temp_pid_file):
+    def test_daemon_init_with_options(self, temp_db):
         """Test daemon initialization with options."""
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = Path(tmpdir) / "daemon.log"
@@ -121,7 +111,7 @@ class TestBentWookieDaemon:
             assert d.poll_interval == 10
             assert d.loop_name == "test_loop"
 
-    def test_daemon_run_initialization(self, temp_db, temp_pid_file, monkeypatch):
+    def test_daemon_run_initialization(self, temp_db, monkeypatch):
         """Test daemon run initialization (without actually running the loop)."""
         from bentwookie import settings
         import tempfile
@@ -136,7 +126,7 @@ class TestBentWookieDaemon:
             assert d.running is False
             assert d.poll_interval > 0
 
-    def test_daemon_stop(self, temp_db, temp_pid_file):
+    def test_daemon_stop(self, temp_db):
         """Test daemon stop method."""
         d = daemon.BentWookieDaemon()
         d.running = True
@@ -148,16 +138,16 @@ class TestBentWookieDaemon:
 class TestStartDaemon:
     """Tests for start_daemon function."""
 
-    def test_start_daemon_already_running(self, temp_pid_file, monkeypatch):
+    def test_start_daemon_already_running(self, temp_db, monkeypatch):
         """Test start_daemon when daemon is already running."""
         monkeypatch.setattr(daemon, "is_daemon_running", lambda: True)
-        monkeypatch.setattr(daemon, "read_pid_file", lambda: 12345)
+        monkeypatch.setattr(daemon, "read_pid", lambda: 12345)
 
         result = daemon.start_daemon()
         assert result is False
 
     @patch("os.fork")
-    def test_start_daemon_background(self, mock_fork, temp_pid_file, temp_db, monkeypatch):
+    def test_start_daemon_background(self, mock_fork, temp_db, monkeypatch):
         """Test start_daemon in background mode."""
         # Simulate parent process
         mock_fork.return_value = 12345
@@ -173,7 +163,7 @@ class TestStartDaemon:
 class TestStopDaemon:
     """Tests for stop_daemon function."""
 
-    def test_stop_daemon_not_running(self, temp_pid_file, monkeypatch):
+    def test_stop_daemon_not_running(self, temp_db, monkeypatch):
         """Test stop_daemon when daemon is not running."""
         monkeypatch.setattr(daemon, "is_daemon_running", lambda: False)
 
@@ -181,11 +171,12 @@ class TestStopDaemon:
         assert result is False
 
     @patch("os.kill")
-    def test_stop_daemon_running(self, mock_kill, temp_pid_file, monkeypatch):
+    def test_stop_daemon_running(self, mock_kill, temp_db, monkeypatch):
         """Test stop_daemon when daemon is running."""
-        temp_pid_file.write_text("12345")
+        from bentwookie.db import set_daemon_pid
+        set_daemon_pid(12345, "test_loop")
         monkeypatch.setattr(daemon, "is_daemon_running", lambda: True)
-        monkeypatch.setattr(daemon, "read_pid_file", lambda: 12345)
+        monkeypatch.setattr(daemon, "read_pid", lambda: 12345)
 
         result = daemon.stop_daemon()
         assert result is True

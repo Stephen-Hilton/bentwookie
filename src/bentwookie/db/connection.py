@@ -108,6 +108,36 @@ def _run_migrations() -> None:
             UNIQUE(opttype, optname)
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS daemon_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            pid INTEGER,
+            loop_name TEXT,
+            started_at TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS request_doc (
+            docid INTEGER PRIMARY KEY AUTOINCREMENT,
+            reqid INTEGER NOT NULL,
+            doc_name TEXT NOT NULL,
+            doc_path TEXT NOT NULL,
+            doc_phase TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (reqid) REFERENCES request(reqid) ON DELETE CASCADE
+        )
+        """,
+    ]
+
+    # Index migrations (indexes that might not exist in older DBs)
+    index_migrations = [
+        "CREATE INDEX IF NOT EXISTS idx_request_doc_reqid ON request_doc(reqid)",
+    ]
+
+    # Singleton row initialization
+    singleton_inits = [
+        "INSERT OR IGNORE INTO daemon_state (id) VALUES (1)",
     ]
 
     with get_db() as conn:
@@ -117,6 +147,20 @@ def _run_migrations() -> None:
                 conn.execute(table_sql)
             except sqlite3.OperationalError:
                 pass  # Table might already exist
+
+        # Run index migrations
+        for index_sql in index_migrations:
+            try:
+                conn.execute(index_sql)
+            except sqlite3.OperationalError:
+                pass  # Index might already exist
+
+        # Initialize singleton rows
+        for init_sql in singleton_inits:
+            try:
+                conn.execute(init_sql)
+            except sqlite3.OperationalError:
+                pass  # Row might already exist
 
         # Run column migrations
         for table, column, coltype in column_migrations:

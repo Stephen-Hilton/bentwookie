@@ -1,0 +1,63 @@
+/**
+ * Table Sorter Styles
+ * 
+ * Feature: bentwookie-web-ui-enhancements
+ * Requirements: 1.4
+ */
+
+/* Sortable header styles */
+th.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+th.sortable-header:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Sort indicator */
+.sort-indicator {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.85em;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+th.sortable-header:hover .sort-indicator {
+    opacity: 0.8;
+}
+
+/* Active sort states */
+th.sort-asc .sort-indicator,
+th.sort-desc .sort-indicator {
+    opacity: 1;
+    color: #007bff;
+}
+
+th.sort-asc {
+    background-color: rgba(0, 123, 255, 0.08);
+}
+
+th.sort-desc {
+    background-color: rgba(0, 123, 255, 0.08);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    th.sortable-header:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    th.sort-asc,
+    th.sort-desc {
+        background-color: rgba(0, 123, 255, 0.15);
+    }
+
+    th.sort-asc .sort-indicator,
+    th.sort-desc .sort-indicator {
+        color: #4dabf7;
+    }
+}

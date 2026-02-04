@@ -49,6 +49,7 @@
         </div>
 
         <form action="{{ url_for('api_loop_settings') }}" method="POST" class="form loop-settings-form">
+            <!-- Loop Timing Settings -->
             <div class="form-row">
                 <div class="form-group">
                     <label for="poll_interval">Poll Interval (seconds)</label>
@@ -61,15 +62,56 @@
                            value="{{ loop_settings.max_iterations }}">
                 </div>
                 <div class="form-group">
+                    <label for="max_turns">Max Turns per Phase</label>
+                    <input type="number" id="max_turns" name="max_turns" min="1" max="500"
+                           value="{{ loop_settings.max_turns }}">
+                </div>
+                <div class="form-group">
                     <label for="doc_retention_days">Doc Retention (days, 0 = forever)</label>
                     <input type="number" id="doc_retention_days" name="doc_retention_days" min="0"
                            value="{{ loop_settings.doc_retention_days }}">
+                </div>
+            </div>
+
+            <!-- Commit Settings -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="commit_enabled">
+                        <input type="checkbox" id="commit_enabled" name="commit_enabled" value="1"
+                               {% if loop_settings.commit_enabled %}checked{% endif %}>
+                        Enable Commit Phase
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="commit_branch_mode">Commit Branch Mode</label>
+                    <select id="commit_branch_mode" name="commit_branch_mode">
+                        <option value="current" {% if loop_settings.commit_branch_mode == 'current' %}selected{% endif %}>Current Branch</option>
+                        <option value="other" {% if loop_settings.commit_branch_mode == 'other' %}selected{% endif %}>Specific Branch</option>
+                    </select>
+                </div>
+                <div class="form-group" id="branch_name_group" style="{% if loop_settings.commit_branch_mode != 'other' %}display: none;{% endif %}">
+                    <label for="commit_branch_name">Branch Name</label>
+                    <input type="text" id="commit_branch_name" name="commit_branch_name"
+                           value="{{ loop_settings.commit_branch_name or '' }}"
+                           placeholder="e.g., feature/auto-commits">
                 </div>
                 <div class="form-group form-actions">
                     <button type="submit" class="btn btn-primary">Update Settings</button>
                 </div>
             </div>
         </form>
+
+        <script>
+        // Show/hide branch name field based on commit_branch_mode selection
+        document.getElementById('commit_branch_mode').addEventListener('change', function() {
+            var branchNameGroup = document.getElementById('branch_name_group');
+            if (this.value === 'other') {
+                branchNameGroup.style.display = '';
+            } else {
+                branchNameGroup.style.display = 'none';
+            }
+        });
+        </script>
     </div>
 </div>
 
@@ -89,11 +131,11 @@
         <img src="{{ url_for('static', filename='icons/ui_filterrecords.png') }}" alt="">
         Requests by Status
     </h2>
-    <table class="table table-sm">
+    <table class="table table-sm" data-sortable-table="true">
         <thead>
             <tr>
-                <th>Status</th>
-                <th>Count</th>
+                <th data-sortable="true" data-sort-type="text">Status</th>
+                <th data-sortable="true" data-sort-type="number">Count</th>
             </tr>
         </thead>
         <tbody>
@@ -117,11 +159,11 @@
         <img src="{{ url_for('static', filename='icons/ui_pipeline.png') }}" alt="">
         Requests by Phase
     </h2>
-    <table class="table table-sm">
+    <table class="table table-sm" data-sortable-table="true">
         <thead>
             <tr>
-                <th>Phase</th>
-                <th>Count</th>
+                <th data-sortable="true" data-sort-type="text">Phase</th>
+                <th data-sortable="true" data-sort-type="number">Count</th>
             </tr>
         </thead>
         <tbody>

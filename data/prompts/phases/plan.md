@@ -82,6 +82,17 @@ Example format:
 - Be thorough but concise
 - Write both documents to the working directory
 
+## Document Tracking
+
+When you create or update any document files, report them using this format:
+[DOC:filename] path: /full/path/to/filename
+
+For example:
+[DOC:PLAN.md] path: /project/working/dir/PLAN.md
+[DOC:TESTPLAN.md] path: /project/working/dir/TESTPLAN.md
+
+This allows the system to track all documents generated during this phase.
+
 ## Output
 
 After creating both PLAN.md and TESTPLAN.md, provide a brief summary of:

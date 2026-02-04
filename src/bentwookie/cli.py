@@ -1148,22 +1148,28 @@ def status_cmd() -> None:
 
 
 # =============================================================================
-# Web Command
+# Web Commands
 # =============================================================================
 
 
-@main.command("web")
+@main.group("web")
+def web_group() -> None:
+    """Web UI commands."""
+    pass
+
+
+@web_group.command("start")
 @click.option("--host", "-h", type=str, default="127.0.0.1", help="Host to bind")
 @click.option("--port", "-p", type=int, default=5000, help="Port to bind")
 @click.option("--debug", "-d", is_flag=True, help="Enable debug mode")
-def web_cmd(host: str, port: int, debug: bool) -> None:
+def web_start_cmd(host: str, port: int, debug: bool) -> None:
     """Start the web UI.
 
     \b
     Examples:
-      bw web
-      bw web --port 8080
-      bw web --host 0.0.0.0 --debug
+      bw web start
+      bw web start --port 8080
+      bw web start --host 0.0.0.0 --debug
     """
     ensure_bw_workspace()
 
@@ -1175,6 +1181,36 @@ def web_cmd(host: str, port: int, debug: bool) -> None:
         app.run(host=host, port=port, debug=debug)
     except ImportError:
         raise click.ClickException("Flask is required. Install with: pip install flask")
+
+
+@web_group.command("status")
+def web_status_cmd() -> None:
+    """Show web server status.
+
+    \b
+    Examples:
+      bw web status
+    """
+    from .web.status import get_web_status
+    from .settings import get_web_host, get_web_port
+
+    status = get_web_status()
+
+    click.echo("\nWeb Server Status")
+    click.echo("-" * 40)
+
+    if status["running"]:
+        click.echo(f"Status:  Running")
+        click.echo(f"URL:     {status['url']}")
+        if status["pid"]:
+            click.echo(f"PID:     {status['pid']}")
+    else:
+        click.echo(f"Status:  Not running")
+
+    click.echo(f"\nConfigured Defaults:")
+    click.echo(f"  Host:  {get_web_host()}")
+    click.echo(f"  Port:  {get_web_port()}")
+    click.echo(f"\nStart with: bw web start")
 
 
 # =============================================================================

@@ -1,6 +1,9 @@
 """Flask application for BentWookie web UI."""
 
+import bleach
+import markdown as md
 from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+from markupsafe import Markup
 
 from ..constants import (
     DEFAULT_PRIORITY,
@@ -29,6 +32,8 @@ from ..db import (
     get_project,
     get_project_infrastructure,
     get_request,
+    get_request_docs,
+    get_request_doc,
     get_request_infrastructure,
     init_db,
     list_projects,
@@ -38,6 +43,80 @@ from ..db import (
     update_request_phase,
     update_request_status,
 )
+
+# Allowed HTML tags for bleach sanitization
+ALLOWED_TAGS = [
+    # Headings
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    # Text formatting
+    "p", "strong", "em", "code", "pre",
+    # Lists
+    "ul", "ol", "li",
+    # Links
+    "a",
+    # Other
+    "br", "blockquote", "hr",
+    # Tables (for markdown tables extension)
+    "table", "thead", "tbody", "tr", "th", "td",
+]
+
+# Allowed HTML attributes for bleach sanitization
+ALLOWED_ATTRIBUTES = {
+    "a": ["href"],
+}
+
+# Allowed URL protocols for links
+ALLOWED_PROTOCOLS = ["http", "https", "mailto"]
+
+
+def _filter_href(tag: str, name: str, value: str) -> bool:
+    """Filter function for href attributes to block javascript: URLs."""
+    if tag == "a" and name == "href":
+        # Block javascript: and other dangerous protocols
+        value_lower = value.lower().strip()
+        if value_lower.startswith("javascript:"):
+            return False
+        if value_lower.startswith("vbscript:"):
+            return False
+        if value_lower.startswith("data:"):
+            return False
+    return True
+
+
+def render_markdown(text: str) -> str:
+    """Convert markdown text to sanitized HTML.
+
+    Args:
+        text: Raw markdown string
+
+    Returns:
+        Sanitized HTML string
+    """
+    if not text:
+        return ""
+
+    # Convert markdown to HTML with extensions
+    html = md.markdown(
+        text,
+        extensions=["fenced_code", "tables"],
+    )
+
+    # Sanitize HTML to prevent XSS attacks
+    # Use bleach.Cleaner for more control over attribute filtering
+    cleaner = bleach.Cleaner(
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        protocols=ALLOWED_PROTOCOLS,
+        strip=True,
+    )
+    sanitized = cleaner.clean(html)
+
+    # Additional pass to remove any javascript: URLs that might have slipped through
+    # This handles edge cases where bleach's protocol filtering doesn't catch everything
+    import re
+    sanitized = re.sub(r'href\s*=\s*["\']javascript:[^"\']*["\']', 'href="#"', sanitized, flags=re.IGNORECASE)
+
+    return sanitized
 
 
 def create_app() -> Flask:
@@ -77,6 +156,19 @@ def create_app() -> Flask:
             "VALID_PROVIDERS": VALID_PROVIDERS,
         }
 
+    # Register Jinja2 filter for markdown rendering
+    @app.template_filter("markdown")
+    def markdown_filter(text: str) -> Markup:
+        """Jinja2 filter to render markdown as HTML.
+
+        Args:
+            text: Raw markdown string
+
+        Returns:
+            Markup object with sanitized HTML
+        """
+        return Markup(render_markdown(text))
+
     return app
 
 
@@ -86,6 +178,11 @@ def register_routes(app: Flask) -> None:
     Args:
         app: Flask application instance.
     """
+
+    @app.route("/health")
+    def health():
+        """Health check endpoint for BentWookie web server."""
+        return jsonify({"status": "ok", "service": "bentwookie"})
 
     @app.route("/")
     def index():
@@ -287,6 +384,7 @@ def register_routes(app: Flask) -> None:
         project = get_project(req["prjid"])
         request_infra = get_request_infrastructure(reqid)
         effective_infra = get_effective_infrastructure(reqid)
+        documents = get_request_docs(reqid)
 
         return render_template(
             "request_view.html",
@@ -294,6 +392,7 @@ def register_routes(app: Flask) -> None:
             project=project,
             request_infrastructure=request_infra,
             effective_infrastructure=effective_infra,
+            documents=documents,
         )
 
     @app.route("/requests/<int:reqid>/edit", methods=["GET", "POST"])
@@ -361,6 +460,44 @@ def register_routes(app: Flask) -> None:
         delete_request(reqid)
         flash(f"Request '{req['reqname']}' deleted", "success")
         return redirect(url_for("requests_list"))
+
+    # =========================================================================
+    # Document Viewer Routes
+    # =========================================================================
+
+    @app.route("/docs/<int:doc_id>")
+    def view_document(doc_id: int):
+        """Display a document rendered as markdown."""
+        from pathlib import Path
+
+        doc = get_request_doc(doc_id)
+        if not doc:
+            flash("Document not found", "error")
+            return redirect(url_for("requests_list"))
+
+        # Get the request for back navigation
+        req = get_request(doc["reqid"])
+
+        # Read file content
+        doc_path = Path(doc["doc_path"])
+        content = ""
+        error = None
+
+        if doc_path.exists():
+            try:
+                content = doc_path.read_text(encoding="utf-8")
+            except Exception as e:
+                error = f"Error reading file: {e}"
+        else:
+            error = f"File not found: {doc_path}"
+
+        return render_template(
+            "document_view.html",
+            doc=doc,
+            req=req,
+            content=content,
+            error=error,
+        )
 
     # =========================================================================
     # Infrastructure Management Routes
@@ -464,7 +601,16 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/loop/settings", methods=["GET", "POST"])
     def api_loop_settings():
         """Get or update loop settings."""
-        from ..settings import get_loop_settings, update_loop_settings, get_doc_retention_days, set_doc_retention_days
+        from ..settings import (
+            get_loop_settings,
+            update_loop_settings,
+            get_doc_retention_days,
+            set_doc_retention_days,
+            set_max_turns,
+            set_commit_enabled,
+            set_commit_branch_mode,
+            set_commit_branch_name,
+        )
 
         if request.method == "POST":
             data = request.get_json() if request.is_json else request.form
@@ -473,10 +619,32 @@ def register_routes(app: Flask) -> None:
                 max_iterations=int(data["max_iterations"]) if "max_iterations" in data else None,
                 poll_interval=int(data["poll_interval"]) if "poll_interval" in data else None,
             )
-            # Handle doc retention separately
+            # Handle doc retention
             if "doc_retention_days" in data:
                 set_doc_retention_days(int(data["doc_retention_days"]))
-            settings["doc_retention_days"] = get_doc_retention_days()
+
+            # Handle max_turns
+            if "max_turns" in data:
+                set_max_turns(int(data["max_turns"]))
+
+            # Handle commit settings
+            # For form submissions, checkbox is only present when checked
+            if request.is_json:
+                if "commit_enabled" in data:
+                    set_commit_enabled(bool(data["commit_enabled"]))
+            else:
+                # Form submission: checkbox present = checked, absent = unchecked
+                set_commit_enabled("commit_enabled" in data)
+
+            if "commit_branch_mode" in data:
+                set_commit_branch_mode(data["commit_branch_mode"])
+
+            if "commit_branch_name" in data:
+                branch_name = data["commit_branch_name"]
+                set_commit_branch_name(branch_name if branch_name else None)
+
+            # Return updated settings
+            settings = get_loop_settings()
 
             # Redirect for form submissions, JSON for API calls
             if request.is_json:
@@ -484,7 +652,6 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("status_page"))
 
         settings = get_loop_settings()
-        settings["doc_retention_days"] = get_doc_retention_days()
         return jsonify(settings)
 
     @app.route("/api/status")

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BentWookie{% block title_suffix %}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/table-sorter.css') }}">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/logocircle.png') }}">
 </head>
 <body>
@@ -153,5 +154,7 @@
         <img src="{{ url_for('static', filename='icons/logocircle.png') }}" alt="BentWookie">
         <p>BentWookie v0.2.0 - AI Coding Loop Workflow Manager</p>
     </footer>
+
+    <script src="{{ url_for('static', filename='js/table-sorter.js') }}"></script>
 </body>
 </html>

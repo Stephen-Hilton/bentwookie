@@ -98,6 +98,29 @@ CREATE TABLE IF NOT EXISTS infra_option (
     UNIQUE(opttype, optname)
 );
 
+-- Daemon state table (singleton - only one row)
+CREATE TABLE IF NOT EXISTS daemon_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    pid INTEGER,
+    loop_name TEXT,
+    started_at TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Initialize daemon_state with empty row if not exists
+INSERT OR IGNORE INTO daemon_state (id) VALUES (1);
+
+-- Request documents table (tracks documents generated during request processing)
+CREATE TABLE IF NOT EXISTS request_doc (
+    docid INTEGER PRIMARY KEY AUTOINCREMENT,
+    reqid INTEGER NOT NULL,
+    doc_name TEXT NOT NULL,
+    doc_path TEXT NOT NULL,
+    doc_phase TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reqid) REFERENCES request(reqid) ON DELETE CASCADE
+);
+
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_request_status ON request(reqstatus);
 CREATE INDEX IF NOT EXISTS idx_request_phase ON request(reqphase);
@@ -105,3 +128,4 @@ CREATE INDEX IF NOT EXISTS idx_request_prjid ON request(prjid);
 CREATE INDEX IF NOT EXISTS idx_infrastructure_prjid ON infrastructure(prjid);
 CREATE INDEX IF NOT EXISTS idx_request_infrastructure_reqid ON request_infrastructure(reqid);
 CREATE INDEX IF NOT EXISTS idx_learning_prjid ON learning(prjid);
+CREATE INDEX IF NOT EXISTS idx_request_doc_reqid ON request_doc(reqid);

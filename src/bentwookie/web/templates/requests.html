@@ -53,16 +53,16 @@
 </form>
 
 {% if requests %}
-<table class="table">
+<table class="table" data-sortable-table="true">
     <thead>
         <tr>
-            <th>ID</th>
-            <th>Project</th>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Phase</th>
-            <th>Status</th>
-            <th>Priority</th>
+            <th data-sortable="true" data-sort-type="number">ID</th>
+            <th data-sortable="true" data-sort-type="text">Project</th>
+            <th data-sortable="true" data-sort-type="text">Name</th>
+            <th data-sortable="true" data-sort-type="text">Type</th>
+            <th data-sortable="true" data-sort-type="text">Phase</th>
+            <th data-sortable="true" data-sort-type="text">Status</th>
+            <th data-sortable="true" data-sort-type="number">Priority</th>
             <th>Actions</th>
         </tr>
     </thead>

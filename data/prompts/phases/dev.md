@@ -62,6 +62,17 @@ Implement the feature or fix according to `PLAN.md`. Follow these guidelines:
 - Test your changes compile/run without errors
 - Do NOT run the full test suite (that's for the test phase)
 
+## Document Tracking
+
+When you create or update any document files, report them using this format:
+[DOC:filename] path: /full/path/to/filename
+
+For example:
+[DOC:PLAN.md] path: /project/working/dir/PLAN.md
+[DOC:custom_output.md] path: /project/working/dir/custom_output.md
+
+This allows the system to track all documents generated during this phase.
+
 ## Output
 
 Provide a summary of the changes made, including:

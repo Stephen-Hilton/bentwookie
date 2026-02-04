@@ -232,3 +232,101 @@ class TestDocRetentionSettings:
         """Test setting negative retention clamps to 0."""
         settings.set_doc_retention_days(-10)
         assert settings.get_doc_retention_days() == 0
+
+
+class TestMaxTurnsSettings:
+    """Tests for max turns settings."""
+
+    def test_get_max_turns_default(self, temp_settings_dir):
+        """Test default max turns."""
+        turns = settings.get_max_turns()
+        assert turns == 50
+
+    def test_set_max_turns(self, temp_settings_dir):
+        """Test setting max turns."""
+        settings.set_max_turns(100)
+        assert settings.get_max_turns() == 100
+
+    def test_set_max_turns_minimum(self, temp_settings_dir):
+        """Test max turns has minimum of 1."""
+        settings.set_max_turns(0)
+        assert settings.get_max_turns() == 1
+
+    def test_set_max_turns_negative(self, temp_settings_dir):
+        """Test setting negative max turns clamps to 1."""
+        settings.set_max_turns(-5)
+        assert settings.get_max_turns() == 1
+
+
+class TestWebServerSettings:
+    """Tests for web server settings."""
+
+    def test_get_web_host_default(self, temp_settings_dir):
+        """Test default web host."""
+        host = settings.get_web_host()
+        assert host == "127.0.0.1"
+
+    def test_set_web_host(self, temp_settings_dir):
+        """Test setting web host."""
+        settings.set_web_host("0.0.0.0")
+        assert settings.get_web_host() == "0.0.0.0"
+
+    def test_set_web_host_localhost(self, temp_settings_dir):
+        """Test setting web host to localhost."""
+        settings.set_web_host("localhost")
+        assert settings.get_web_host() == "localhost"
+
+    def test_get_web_port_default(self, temp_settings_dir):
+        """Test default web port."""
+        port = settings.get_web_port()
+        assert port == 5000
+
+    def test_set_web_port(self, temp_settings_dir):
+        """Test setting web port."""
+        settings.set_web_port(8080)
+        assert settings.get_web_port() == 8080
+
+
+class TestGetLoopSettingsComplete:
+    """Tests for get_loop_settings including all settings."""
+
+    def test_get_loop_settings_includes_all_fields(self, temp_settings_dir):
+        """Test that get_loop_settings returns all loop-related settings."""
+        loop_settings = settings.get_loop_settings()
+
+        # Check all expected keys are present
+        expected_keys = [
+            "loop_paused",
+            "max_iterations",
+            "poll_interval",
+            "max_turns",
+            "doc_retention_days",
+            "commit_enabled",
+            "commit_branch_mode",
+            "commit_branch_name",
+        ]
+        for key in expected_keys:
+            assert key in loop_settings, f"Missing key: {key}"
+
+    def test_get_loop_settings_values(self, temp_settings_dir):
+        """Test that get_loop_settings returns correct values."""
+        # Set specific values
+        settings.set_loop_paused(True)
+        settings.set_max_iterations(5)
+        settings.set_poll_interval(45)
+        settings.set_max_turns(75)
+        settings.set_doc_retention_days(60)
+        settings.set_commit_enabled(False)
+        settings.set_commit_branch_mode("current")
+        settings.set_commit_branch_name("feature-branch")
+
+        loop_settings = settings.get_loop_settings()
+
+        assert loop_settings["loop_paused"] is True
+        assert loop_settings["max_iterations"] == 5
+        assert loop_settings["poll_interval"] == 45
+        assert loop_settings["max_turns"] == 75
+        assert loop_settings["doc_retention_days"] == 60
+        assert loop_settings["commit_enabled"] is False
+        assert loop_settings["commit_branch_mode"] == "current"
+        assert loop_settings["commit_branch_name"] == "feature-branch"

@@ -8,5 +8,7 @@
   "doc_retention_days": 30,
   "commit_enabled": true,
   "commit_branch_mode": "current",
-  "commit_branch_name": null
+  "commit_branch_name": null,
+  "web_host": "127.0.0.1",
+  "web_port": 5000
 }

@@ -287,3 +287,54 @@ class TestLoopCommands:
         result = runner.invoke(main, ["loop", "status"])
         assert result.exit_code == 0
         assert "not running" in result.output.lower()
+
+
+class TestWebCommands:
+    """Tests for web subcommands."""
+
+    def test_web_status_not_running(self, runner, temp_db):
+        """Test web status when server is not running."""
+        from unittest.mock import patch
+
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
+
+        # Mock is_web_server_running to return False
+        with patch("bentwookie.web.status.is_web_server_running", return_value=False):
+            result = runner.invoke(main, ["web", "status"])
+            assert result.exit_code == 0
+            assert "Not running" in result.output
+            assert "Configured Defaults" in result.output
+            assert "Host:" in result.output
+            assert "Port:" in result.output
+
+    def test_web_status_running(self, runner, temp_db):
+        """Test web status when server is running."""
+        from unittest.mock import patch
+
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
+
+        # Mock is_web_server_running to return True
+        with patch("bentwookie.web.status.is_web_server_running", return_value=True):
+            result = runner.invoke(main, ["web", "status"])
+            assert result.exit_code == 0
+            assert "Running" in result.output
+            assert "URL:" in result.output
+
+    def test_web_status_shows_defaults(self, runner, temp_db):
+        """Test web status shows configured defaults."""
+        from unittest.mock import patch
+
+        runner.invoke(main, ["init", "--db-path", str(temp_db), "--auth", "max"])
+
+        with patch("bentwookie.web.status.is_web_server_running", return_value=False):
+            result = runner.invoke(main, ["web", "status"])
+            assert result.exit_code == 0
+            assert "127.0.0.1" in result.output
+            assert "5000" in result.output
+
+    def test_web_help(self, runner):
+        """Test web --help shows subcommands."""
+        result = runner.invoke(main, ["web", "--help"])
+        assert result.exit_code == 0
+        assert "start" in result.output
+        assert "status" in result.output

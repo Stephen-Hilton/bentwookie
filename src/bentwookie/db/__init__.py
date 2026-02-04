@@ -50,6 +50,17 @@ from .queries import (
     update_request_planpath,
     update_request_status,
     update_request_testplanpath,
+    # Daemon state operations
+    set_daemon_pid,
+    get_daemon_pid,
+    get_daemon_info,
+    clear_daemon_pid,
+    update_daemon_heartbeat,
+    # Request document operations
+    create_request_doc,
+    get_request_docs,
+    get_request_doc,
+    delete_request_docs,
 )
 
 __all__ = [
@@ -106,4 +117,15 @@ __all__ = [
     "delete_infra_option",
     "delete_infra_option_by_id",
     "seed_default_infra_options",
+    # Daemon state operations
+    "set_daemon_pid",
+    "get_daemon_pid",
+    "get_daemon_info",
+    "clear_daemon_pid",
+    "update_daemon_heartbeat",
+    # Request document operations
+    "create_request_doc",
+    "get_request_docs",
+    "get_request_doc",
+    "delete_request_docs",
 ]

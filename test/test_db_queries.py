@@ -588,3 +588,209 @@ class TestInfraOptionOperations:
 
         result = queries.delete_infra_option_by_id(optid)
         assert result is True
+
+
+class TestDaemonStateOperations:
+    """Tests for daemon state operations."""
+
+    def test_set_daemon_pid(self, temp_db):
+        """Test setting daemon PID."""
+        queries.set_daemon_pid(12345, "test_loop")
+
+        pid = queries.get_daemon_pid()
+        assert pid == 12345
+
+    def test_get_daemon_pid_not_set(self, temp_db):
+        """Test getting daemon PID when not set."""
+        pid = queries.get_daemon_pid()
+        assert pid is None
+
+    def test_get_daemon_info(self, temp_db):
+        """Test getting full daemon info."""
+        queries.set_daemon_pid(12345, "test_loop")
+
+        info = queries.get_daemon_info()
+        assert info is not None
+        assert info["pid"] == 12345
+        assert info["loop_name"] == "test_loop"
+        assert info["started_at"] is not None
+
+    def test_get_daemon_info_not_set(self, temp_db):
+        """Test getting daemon info when not set."""
+        info = queries.get_daemon_info()
+        assert info is None
+
+    def test_clear_daemon_pid(self, temp_db):
+        """Test clearing daemon PID."""
+        queries.set_daemon_pid(12345, "test_loop")
+        assert queries.get_daemon_pid() == 12345
+
+        queries.clear_daemon_pid()
+        assert queries.get_daemon_pid() is None
+
+    def test_update_daemon_heartbeat(self, temp_db):
+        """Test updating daemon heartbeat."""
+        queries.set_daemon_pid(12345, "test_loop")
+        info1 = queries.get_daemon_info()
+
+        import time
+        time.sleep(0.1)
+
+        queries.update_daemon_heartbeat()
+        info2 = queries.get_daemon_info()
+
+        # Heartbeat should be updated
+        assert info2["updated_at"] >= info1["updated_at"]
+
+    def test_set_daemon_pid_overwrites(self, temp_db):
+        """Test that setting PID overwrites previous value."""
+        queries.set_daemon_pid(11111, "loop1")
+        queries.set_daemon_pid(22222, "loop2")
+
+        pid = queries.get_daemon_pid()
+        assert pid == 22222
+
+        info = queries.get_daemon_info()
+        assert info["loop_name"] == "loop2"
+
+
+class TestRequestDocOperations:
+    """Tests for request document CRUD operations."""
+
+    def test_create_request_doc(self, temp_db):
+        """Test creating a request document."""
+        prjid = queries.create_project("doc_project")
+        reqid = queries.create_request(prjid, "doc_request", "prompt")
+        docid = queries.create_request_doc(reqid, "PLAN.md", "/path/to/PLAN.md", "plan")
+
+        assert docid is not None
+        assert docid > 0
+
+    def test_create_request_doc_without_phase(self, temp_db):
+        """Test creating a request document without a phase."""
+        prjid = queries.create_project("doc_project_no_phase")
+        reqid = queries.create_request(prjid, "doc_request", "prompt")
+        docid = queries.create_request_doc(reqid, "custom.md", "/path/to/custom.md")
+
+        assert docid is not None
+        doc = queries.get_request_doc(docid)
+        assert doc["doc_phase"] is None
+
+    def test_get_request_doc(self, temp_db):
+        """Test getting a single document by ID."""
+        prjid = queries.create_project("get_doc_project")
+        reqid = queries.create_request(prjid, "get_doc_request", "prompt")
+        docid = queries.create_request_doc(reqid, "TEST.md", "/path/to/TEST.md", "test")
+
+        doc = queries.get_request_doc(docid)
+        assert doc is not None
+        assert doc["docid"] == docid
+        assert doc["reqid"] == reqid
+        assert doc["doc_name"] == "TEST.md"
+        assert doc["doc_path"] == "/path/to/TEST.md"
+        assert doc["doc_phase"] == "test"
+        assert doc["created_at"] is not None
+
+    def test_get_request_doc_not_found(self, temp_db):
+        """Test getting a non-existent document."""
+        doc = queries.get_request_doc(99999)
+        assert doc is None
+
+    def test_get_request_docs(self, temp_db):
+        """Test getting all documents for a request."""
+        prjid = queries.create_project("get_docs_project")
+        reqid = queries.create_request(prjid, "get_docs_request", "prompt")
+        queries.create_request_doc(reqid, "PLAN.md", "/path/to/PLAN.md", "plan")
+        queries.create_request_doc(reqid, "DEV.md", "/path/to/DEV.md", "dev")
+        queries.create_request_doc(reqid, "TEST.md", "/path/to/TEST.md", "test")
+
+        docs = queries.get_request_docs(reqid)
+        assert len(docs) == 3
+
+    def test_get_request_docs_empty(self, temp_db):
+        """Test getting documents for a request with no documents."""
+        prjid = queries.create_project("empty_docs_project")
+        reqid = queries.create_request(prjid, "empty_docs_request", "prompt")
+
+        docs = queries.get_request_docs(reqid)
+        assert docs == []
+
+    def test_get_request_docs_returns_all_docs(self, temp_db):
+        """Test that get_request_docs returns all documents for a request."""
+        prjid = queries.create_project("ordered_docs_project")
+        reqid = queries.create_request(prjid, "ordered_docs_request", "prompt")
+        
+        # Create multiple documents
+        queries.create_request_doc(reqid, "first.md", "/path/first.md", "plan")
+        queries.create_request_doc(reqid, "second.md", "/path/second.md", "dev")
+        queries.create_request_doc(reqid, "third.md", "/path/third.md", "test")
+
+        docs = queries.get_request_docs(reqid)
+        # All documents should be returned
+        assert len(docs) == 3
+        doc_names = {d["doc_name"] for d in docs}
+        assert doc_names == {"first.md", "second.md", "third.md"}
+
+    def test_delete_request_docs(self, temp_db):
+        """Test deleting all documents for a request."""
+        prjid = queries.create_project("del_docs_project")
+        reqid = queries.create_request(prjid, "del_docs_request", "prompt")
+        queries.create_request_doc(reqid, "doc1.md", "/path/doc1.md", "plan")
+        queries.create_request_doc(reqid, "doc2.md", "/path/doc2.md", "dev")
+
+        count = queries.delete_request_docs(reqid)
+        assert count == 2
+
+        docs = queries.get_request_docs(reqid)
+        assert docs == []
+
+    def test_delete_request_docs_returns_zero_when_none(self, temp_db):
+        """Test that delete returns 0 when no documents exist."""
+        prjid = queries.create_project("no_docs_project")
+        reqid = queries.create_request(prjid, "no_docs_request", "prompt")
+
+        count = queries.delete_request_docs(reqid)
+        assert count == 0
+
+    def test_multiple_requests_have_separate_docs(self, temp_db):
+        """Test that documents are correctly associated with their requests."""
+        prjid = queries.create_project("multi_req_project")
+        reqid1 = queries.create_request(prjid, "request1", "prompt1")
+        reqid2 = queries.create_request(prjid, "request2", "prompt2")
+
+        queries.create_request_doc(reqid1, "req1_doc.md", "/path/req1_doc.md", "plan")
+        queries.create_request_doc(reqid2, "req2_doc.md", "/path/req2_doc.md", "dev")
+
+        docs1 = queries.get_request_docs(reqid1)
+        docs2 = queries.get_request_docs(reqid2)
+
+        assert len(docs1) == 1
+        assert len(docs2) == 1
+        assert docs1[0]["doc_name"] == "req1_doc.md"
+        assert docs2[0]["doc_name"] == "req2_doc.md"
+
+    def test_create_request_doc_with_arbitrary_names(self, temp_db):
+        """Test creating documents with arbitrary names including phase names and custom names."""
+        prjid = queries.create_project("arbitrary_names_project")
+        reqid = queries.create_request(prjid, "arbitrary_names_request", "prompt")
+
+        # Phase names
+        docid1 = queries.create_request_doc(reqid, "plan", "/path/plan.md", "plan")
+        docid2 = queries.create_request_doc(reqid, "dev", "/path/dev.md", "dev")
+        docid3 = queries.create_request_doc(reqid, "test", "/path/test.md", "test")
+        docid4 = queries.create_request_doc(reqid, "document", "/path/document.md", "document")
+
+        # Custom names
+        docid5 = queries.create_request_doc(reqid, "IP_Output.md", "/path/IP_Output.md", "dev")
+        docid6 = queries.create_request_doc(reqid, "custom_report.txt", "/path/custom_report.txt")
+
+        docs = queries.get_request_docs(reqid)
+        assert len(docs) == 6
+
+        doc_names = [d["doc_name"] for d in docs]
+        assert "plan" in doc_names
+        assert "dev" in doc_names
+        assert "test" in doc_names
+        assert "document" in doc_names
+        assert "IP_Output.md" in doc_names
+        assert "custom_report.txt" in doc_names

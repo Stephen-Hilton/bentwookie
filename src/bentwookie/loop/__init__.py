@@ -1,6 +1,7 @@
 """Loop module for BentWookie daemon and request processing."""
 
 from .daemon import BentWookieDaemon, start_daemon, stop_daemon
+from .doc_tracker import DocTracker
 from .phases import (
     get_next_phase,
     get_phase_prompt,
@@ -18,6 +19,8 @@ __all__ = [
     "stop_daemon",
     # Processor
     "process_request",
+    # Document Tracker
+    "DocTracker",
     # Phases
     "get_phase_prompt",
     "get_phase_tools",

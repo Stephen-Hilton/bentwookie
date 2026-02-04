@@ -215,9 +215,12 @@ def start_daemon(
     """
     global _daemon
 
-    # Check if daemon is already running (must be BEFORE writing PID file)
+    # Import db functions here to ensure database is accessible
+    from ..db import set_daemon_pid
+
+    # Check if daemon is already running (must be BEFORE writing PID)
     if is_daemon_running():
-        pid = read_pid_file()
+        pid = read_pid()
         print(f"Daemon is already running with PID {pid}")
         return False
 
@@ -229,9 +232,8 @@ def start_daemon(
         # Fork to background
         pid = os.fork()
         if pid > 0:
-            # Parent process - write child PID
-            PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-            PID_FILE.write_text(str(pid))
+            # Parent process - write child PID to database
+            set_daemon_pid(pid, loop_name)
             print(f"Daemon started with PID {pid}")
             sys.exit(0)
         # Child process continues
@@ -251,7 +253,7 @@ def start_daemon(
             os.dup2(devnull.fileno(), sys.stdin.fileno())
     else:
         # Foreground mode - write current PID
-        write_pid_file()
+        write_pid(loop_name)
 
     try:
         # Create and run daemon
@@ -266,11 +268,11 @@ def start_daemon(
         return True
     except Exception as e:
         print(f"Daemon failed to start: {e}")
-        remove_pid_file()
+        clear_pid()
         raise
     finally:
-        # Clean up PID file when daemon exits
-        remove_pid_file()
+        # Clean up PID when daemon exits
+        clear_pid()
 
 
 def stop_daemon() -> bool:
@@ -313,34 +315,30 @@ def get_daemon_status() -> DaemonStatus | None:
     return None
 
 
-# PID file management for external process control
-PID_FILE = Path("data/bentwookie.pid")
+# PID management via database (replaces file-based PID)
+# Using database ensures consistent path resolution across workspaces
 
 
-def write_pid_file() -> None:
-    """Write current PID to file."""
-    PID_FILE.parent.mkdir(parents=True, exist_ok=True)
-    PID_FILE.write_text(str(os.getpid()))
+def write_pid(loop_name: str = "bwloop") -> None:
+    """Write current PID to database."""
+    from ..db import set_daemon_pid
+    set_daemon_pid(os.getpid(), loop_name)
 
 
-def read_pid_file() -> int | None:
-    """Read PID from file.
+def read_pid() -> int | None:
+    """Read PID from database.
 
     Returns:
-        PID if file exists, None otherwise.
+        PID if set, None otherwise.
     """
-    if PID_FILE.exists():
-        try:
-            return int(PID_FILE.read_text().strip())
-        except (ValueError, OSError):
-            return None
-    return None
+    from ..db import get_daemon_pid
+    return get_daemon_pid()
 
 
-def remove_pid_file() -> None:
-    """Remove PID file."""
-    if PID_FILE.exists():
-        PID_FILE.unlink()
+def clear_pid() -> None:
+    """Clear PID from database."""
+    from ..db import clear_daemon_pid
+    clear_daemon_pid()
 
 
 def is_daemon_running() -> bool:
@@ -349,7 +347,7 @@ def is_daemon_running() -> bool:
     Returns:
         True if daemon process is running.
     """
-    pid = read_pid_file()
+    pid = read_pid()
     if pid is None:
         return False
 
@@ -357,6 +355,22 @@ def is_daemon_running() -> bool:
         os.kill(pid, 0)  # Check if process exists
         return True
     except OSError:
-        # Process doesn't exist, clean up stale PID file
-        remove_pid_file()
+        # Process doesn't exist, clean up stale PID
+        clear_pid()
         return False
+
+
+# Legacy aliases for backwards compatibility
+def write_pid_file() -> None:
+    """Legacy alias - writes PID to database."""
+    write_pid()
+
+
+def read_pid_file() -> int | None:
+    """Legacy alias - reads PID from database."""
+    return read_pid()
+
+
+def remove_pid_file() -> None:
+    """Legacy alias - clears PID from database."""
+    clear_pid()

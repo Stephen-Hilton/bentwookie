@@ -25,6 +25,8 @@ DEFAULT_SETTINGS = {
     "commit_enabled": True,  # Enable commit phase by default
     "commit_branch_mode": "current",  # "current" or "other"
     "commit_branch_name": None,  # Branch name when mode="other"
+    "web_host": "127.0.0.1",  # Default web server host
+    "web_port": 5000,  # Default web server port
 }
 
 
@@ -193,6 +195,24 @@ def set_poll_interval(interval: int) -> None:
     set_setting("poll_interval", max(1, interval))
 
 
+def get_max_turns() -> int:
+    """Get the maximum turns per phase.
+
+    Returns:
+        Max turns setting (default: 50).
+    """
+    return get_setting("max_turns", 50)
+
+
+def set_max_turns(turns: int) -> None:
+    """Set the maximum turns per phase.
+
+    Args:
+        turns: Max turns per phase (minimum: 1).
+    """
+    set_setting("max_turns", max(1, turns))
+
+
 def get_loop_settings() -> dict:
     """Get all loop-related settings.
 
@@ -203,6 +223,11 @@ def get_loop_settings() -> dict:
         "loop_paused": is_loop_paused(),
         "max_iterations": get_max_iterations(),
         "poll_interval": get_poll_interval(),
+        "max_turns": get_max_turns(),
+        "doc_retention_days": get_doc_retention_days(),
+        "commit_enabled": get_commit_enabled(),
+        "commit_branch_mode": get_commit_branch_mode(),
+        "commit_branch_name": get_commit_branch_name(),
     }
 
 
@@ -318,3 +343,44 @@ def set_commit_branch_name(name: str | None) -> None:
         name: Branch name or None to clear.
     """
     set_setting("commit_branch_name", name)
+
+
+# =============================================================================
+# Web Server Settings
+# =============================================================================
+
+
+def get_web_host() -> str:
+    """Get the web server host address.
+
+    Returns:
+        Host address (default: "127.0.0.1").
+    """
+    return get_setting("web_host", "127.0.0.1")
+
+
+def set_web_host(host: str) -> None:
+    """Set the web server host address.
+
+    Args:
+        host: Host address to bind to.
+    """
+    set_setting("web_host", host)
+
+
+def get_web_port() -> int:
+    """Get the web server port.
+
+    Returns:
+        Port number (default: 5000).
+    """
+    return get_setting("web_port", 5000)
+
+
+def set_web_port(port: int) -> None:
+    """Set the web server port.
+
+    Args:
+        port: Port number to bind to.
+    """
+    set_setting("web_port", port)

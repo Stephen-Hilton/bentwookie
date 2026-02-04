@@ -14,15 +14,15 @@
 </div>
 
 {% if projects %}
-<table class="table">
+<table class="table" data-sortable-table="true">
     <thead>
         <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Version</th>
-            <th>Priority</th>
-            <th>Phase</th>
-            <th>Requests</th>
+            <th data-sortable="true" data-sort-type="number">ID</th>
+            <th data-sortable="true" data-sort-type="text">Name</th>
+            <th data-sortable="true" data-sort-type="text">Version</th>
+            <th data-sortable="true" data-sort-type="number">Priority</th>
+            <th data-sortable="true" data-sort-type="text">Phase</th>
+            <th data-sortable="true" data-sort-type="number">Requests</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -34,7 +34,7 @@
             <td>{{ p.prjversion }}</td>
             <td>{{ p.prjpriority }}</td>
             <td>{{ p.prjphase }}</td>
-            <td>{{ p.request_count }} ({{ p.pending_count }} pending)</td>
+            <td data-sort-value="{{ p.request_count }}">{{ p.request_count }} ({{ p.pending_count }} pending)</td>
             <td>
                 <a href="{{ url_for('project_view', prjid=p.prjid) }}" class="btn btn-sm">
                     <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">

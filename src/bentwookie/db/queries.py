@@ -1194,3 +1194,159 @@ def seed_default_infra_options() -> int:
             count += 1
 
     return count
+
+
+# =============================================================================
+# Request Document Operations
+# =============================================================================
+
+
+def create_request_doc(
+    reqid: int,
+    doc_name: str,
+    doc_path: str,
+    doc_phase: str | None = None,
+) -> int:
+    """Create a new request document record.
+
+    Args:
+        reqid: Parent request ID.
+        doc_name: Document name (e.g., "PLAN.md", "custom_output.md").
+        doc_path: Full filesystem path to the document.
+        doc_phase: Optional phase that created the document (plan, dev, test, etc.).
+
+    Returns:
+        The new document ID.
+    """
+    with get_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO request_doc (reqid, doc_name, doc_path, doc_phase)
+            VALUES (?, ?, ?, ?)
+            """,
+            (reqid, doc_name, doc_path, doc_phase),
+        )
+        return cursor.lastrowid  # type: ignore
+
+
+def get_request_docs(reqid: int) -> list[dict]:
+    """Get all documents for a request.
+
+    Args:
+        reqid: Request ID.
+
+    Returns:
+        List of document dicts, ordered by created_at descending.
+    """
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM request_doc WHERE reqid = ? ORDER BY created_at DESC",
+            (reqid,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_request_doc(doc_id: int) -> dict | None:
+    """Get a single document by ID.
+
+    Args:
+        doc_id: Document ID.
+
+    Returns:
+        Document dict or None if not found.
+    """
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM request_doc WHERE docid = ?",
+            (doc_id,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def delete_request_docs(reqid: int) -> int:
+    """Delete all documents for a request.
+
+    Args:
+        reqid: Request ID.
+
+    Returns:
+        Number of documents deleted.
+    """
+    with get_db() as conn:
+        cursor = conn.execute(
+            "DELETE FROM request_doc WHERE reqid = ?",
+            (reqid,),
+        )
+        return cursor.rowcount
+
+
+# =============================================================================
+# Daemon State Operations
+# =============================================================================
+
+
+def set_daemon_pid(pid: int, loop_name: str = "bwloop") -> None:
+    """Set the daemon PID in the database.
+
+    Args:
+        pid: Process ID of the running daemon.
+        loop_name: Name identifier for this loop instance.
+    """
+    with get_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO daemon_state (id, pid, loop_name, started_at, updated_at)
+            VALUES (1, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                pid = excluded.pid,
+                loop_name = excluded.loop_name,
+                started_at = excluded.started_at,
+                updated_at = excluded.updated_at
+            """,
+            (pid, loop_name, datetime.now(), datetime.now()),
+        )
+
+
+def get_daemon_pid() -> int | None:
+    """Get the daemon PID from the database.
+
+    Returns:
+        PID if set, None otherwise.
+    """
+    with get_db() as conn:
+        cursor = conn.execute("SELECT pid FROM daemon_state WHERE id = 1")
+        row = cursor.fetchone()
+        return row["pid"] if row and row["pid"] else None
+
+
+def get_daemon_info() -> dict | None:
+    """Get full daemon state info from the database.
+
+    Returns:
+        Dict with pid, loop_name, started_at, updated_at or None if not set.
+    """
+    with get_db() as conn:
+        cursor = conn.execute("SELECT * FROM daemon_state WHERE id = 1")
+        row = cursor.fetchone()
+        if row and row["pid"]:
+            return dict(row)
+        return None
+
+
+def clear_daemon_pid() -> None:
+    """Clear the daemon PID from the database."""
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE daemon_state SET pid = NULL, loop_name = NULL, started_at = NULL, updated_at = ? WHERE id = 1",
+            (datetime.now(),),
+        )
+
+
+def update_daemon_heartbeat() -> None:
+    """Update the daemon heartbeat timestamp."""
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE daemon_state SET updated_at = ? WHERE id = 1",
+            (datetime.now(),),
+        )

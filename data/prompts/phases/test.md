@@ -101,6 +101,17 @@ Consider adding tests for:
 - Concurrent access scenarios (if applicable)
 - Large inputs / performance edge cases
 
+## Document Tracking
+
+When you create or update any document files, report them using this format:
+[DOC:filename] path: /full/path/to/filename
+
+For example:
+[DOC:TESTPLAN.md] path: /project/working/dir/TESTPLAN.md
+[DOC:test_results.md] path: /project/working/dir/test_results.md
+
+This allows the system to track all documents generated during this phase.
+
 ## Output Format
 
 Your final output must be a JSON block that the system will parse:

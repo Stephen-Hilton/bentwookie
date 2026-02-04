@@ -182,6 +182,7 @@ Review TESTPLAN.md for detailed error information. Key errors:
 
 from ..db import queries
 from ..logging_util import get_logger
+from .doc_tracker import DocTracker
 from .phases import (
     get_next_phase,
     get_phase_prompt,
@@ -373,6 +374,13 @@ async def process_request(request: dict) -> bool:
             _run_claude(prompt, options, logger),
             timeout=timeout
         )
+
+        # Track documents created during this phase
+        doc_tracker = DocTracker()
+        docs = doc_tracker.parse_response(response_text)
+        if docs:
+            saved_count = doc_tracker.save_docs(reqid, docs, phase)
+            logger.info(f"Tracked {saved_count} document(s) from phase {phase}")
 
         # Save output to docs if substantial
         if response_text and len(response_text) > 500:
