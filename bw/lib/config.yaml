@@ -1,0 +1,44 @@
+# This is the central control file for the bw library.
+
+bentwookie:
+  version: 0.3.0
+  active_container: dev  # must match one of the container names below
+
+
+image:
+  name: "bw:0.3.0"
+  volumes:
+    - ./bw:/app/bw
+
+
+# One section per Claude account — switch by changing active_container above.
+containers:
+  - name: dev
+    dangerously_skip_permissions: true
+    sleep_seconds: 120
+    model: sonnet
+  - name: work
+    dangerously_skip_permissions: true
+    sleep_seconds: 300
+    model: sonnet
+    weekly_tokens_consumed: "5%"
+
+
+# Work directory locations, relative to the repo root.
+work_dirs:
+  queue: ./bw/work/queue/
+  wip:   ./bw/work/wip/
+  done:  ./bw/work/done/
+  error: ./bw/work/error/
+  review: ./bw/work/review/
+
+
+# Notification settings (stub for now).
+notifications:
+  enabled: false
+  type: stub
+
+
+# Init files / folders included by `bw init`. Relative to repo root.
+init_files:
+  - ./bw/templates/*
