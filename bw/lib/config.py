@@ -54,6 +54,11 @@ class BWConfig:
         raise ValueError(f"No container named '{self.active_container}' in config")
 
 
+def get_package_lib_path() -> Path:
+    """Return the path to the installed bw/lib/ directory (where defaults live)."""
+    return Path(__file__).parent
+
+
 def get_bw_path(start: Path | None = None) -> Path:
     """Walk up from start (or cwd) to find the directory containing a 'bw/' child.
 

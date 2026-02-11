@@ -18,25 +18,30 @@ class ContainerResult:
     timed_out: bool
 
 
-def build_image(dockerfile_path: Path, image_name: str = "bw:0.3.0") -> bool:
+def build_image(dockerfile_path: Path, image_name: str = "bw:0.3.0", timeout: int = 60) -> bool:
     """Build the Docker image from the Dockerfile.
 
+    Streams output to the console so the user can see progress.
     Returns True on success.
     """
     context = dockerfile_path.parent
     log.info("Building Docker image '%s' from %s", image_name, dockerfile_path)
-    result = subprocess.run(
-        ["docker", "build", "-t", image_name, "-f", str(dockerfile_path), "."],
-        cwd=context,
-        capture_output=True,
-        text=True,
-        timeout=600,
-    )
-    if result.returncode != 0:
-        log.error("Docker build failed:\n%s", result.stderr)
+    try:
+        result = subprocess.run(
+            ["docker", "build", "--progress=plain", "-t", image_name,
+             "-f", str(dockerfile_path), "."],
+            cwd=context,
+            text=True,
+            timeout=timeout,
+        )
+        if result.returncode != 0:
+            log.error("Docker build failed (exit code %d)", result.returncode)
+            return False
+        log.info("Docker image '%s' built successfully", image_name)
+        return True
+    except subprocess.TimeoutExpired:
+        log.error("Docker build timed out after %ds — aborting", timeout)
         return False
-    log.info("Docker image '%s' built successfully", image_name)
-    return True
 
 
 def image_exists(image_name: str) -> bool:
