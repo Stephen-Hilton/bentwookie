@@ -1,4 +1,4 @@
-"""Database CRUD operations for BentWookie."""
+"""Database query operations for BentWookie V2."""
 
 from datetime import datetime
 
@@ -11,858 +11,1031 @@ from .connection import get_db
 
 def create_project(
     prjname: str,
-    prjversion: str = "poc",
-    prjpriority: int = 5,
-    prjphase: str = "dev",
+    prjphase: str = "define",
     prjdesc: str | None = None,
     prjcodedir: str | None = None,
-    prjprompt: str | None = None,
-    prjclaudemd: str | None = None,
     prjmodel: str | None = None,
-    prjcommitenabled: int | None = None,
-    prjcommitbranchmode: str | None = None,
-    prjcommitbranchname: str | None = None,
+    prjmaxagents: int = 5,
+    prjpriority: int = 5,
 ) -> int:
     """Create a new project.
-
-    Args:
-        prjname: Unique project name.
-        prjversion: Version string (poc, mvp, v1, etc.).
-        prjpriority: Priority level (1-10).
-        prjphase: Project phase (dev, qa, uat, prod).
-        prjdesc: Optional project description.
-        prjcodedir: Optional code directory path.
-        prjprompt: Optional project-level prompt/guidelines.
-        prjclaudemd: Optional path to claude.md file.
-        prjmodel: Optional Claude model override (None=use global setting).
-        prjcommitenabled: Commit phase override (0=disabled, 1=enabled, None=use global).
-        prjcommitbranchmode: Branch mode override (current/other, None=use global).
-        prjcommitbranchname: Branch name override (None=use global).
 
     Returns:
         The new project ID.
     """
     with get_db() as conn:
         cursor = conn.execute(
-            """
-            INSERT INTO project (prjname, prjversion, prjpriority, prjphase, prjdesc, prjcodedir, prjprompt, prjclaudemd,
-                                prjmodel, prjcommitenabled, prjcommitbranchmode, prjcommitbranchname)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (prjname, prjversion, prjpriority, prjphase, prjdesc, prjcodedir, prjprompt, prjclaudemd,
-             prjmodel, prjcommitenabled, prjcommitbranchmode, prjcommitbranchname),
+            """INSERT INTO project (prjname, prjphase, prjdesc, prjcodedir, prjmodel, prjmaxagents, prjpriority)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (prjname, prjphase, prjdesc, prjcodedir, prjmodel, prjmaxagents, prjpriority),
         )
-        return cursor.lastrowid  # type: ignore
+        return cursor.lastrowid
 
 
 def get_project(prjid: int) -> dict | None:
-    """Get a project by ID.
-
-    Args:
-        prjid: Project ID.
-
-    Returns:
-        Project dict or None if not found.
-    """
+    """Get a project by ID."""
     with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM project WHERE prjid = ?",
-            (prjid,),
-        )
+        cursor = conn.execute("SELECT * FROM project WHERE prjid = ?", (prjid,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
 
 def get_project_by_name(prjname: str) -> dict | None:
-    """Get a project by name.
-
-    Args:
-        prjname: Project name.
-
-    Returns:
-        Project dict or None if not found.
-    """
+    """Get a project by name."""
     with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM project WHERE prjname = ?",
-            (prjname,),
-        )
+        cursor = conn.execute("SELECT * FROM project WHERE prjname = ?", (prjname,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
 
-def list_projects(
-    phase: str | None = None,
-    order_by: str = "prjpriority",
-) -> list[dict]:
-    """List all projects.
-
-    Args:
-        phase: Optional filter by phase.
-        order_by: Column to order by (default: prjpriority).
-
-    Returns:
-        List of project dicts.
-    """
+def list_projects(phase: str | None = None) -> list[dict]:
+    """List all projects, optionally filtered by phase."""
     with get_db() as conn:
         if phase:
             cursor = conn.execute(
-                f"SELECT * FROM project WHERE prjphase = ? ORDER BY {order_by}",
+                "SELECT * FROM project WHERE prjphase = ? ORDER BY prjtouchts DESC",
                 (phase,),
             )
         else:
-            cursor = conn.execute(f"SELECT * FROM project ORDER BY {order_by}")
+            cursor = conn.execute("SELECT * FROM project ORDER BY prjtouchts DESC")
         return [dict(row) for row in cursor.fetchall()]
 
 
-def update_project(
-    prjid: int,
-    prjname: str | None = None,
-    prjversion: str | None = None,
-    prjpriority: int | None = None,
-    prjphase: str | None = None,
-    prjdesc: str | None = None,
-    prjcodedir: str | None = None,
-    prjprompt: str | None = None,
-    prjclaudemd: str | None = None,
-    prjmodel: str | None = None,
-    prjcommitenabled: int | None = None,
-    prjcommitbranchmode: str | None = None,
-    prjcommitbranchname: str | None = None,
-) -> bool:
-    """Update a project.
+def update_project(prjid: int, **kwargs) -> None:
+    """Update a project. Pass field names as keyword arguments."""
+    allowed = {"prjname", "prjphase", "prjdesc", "prjcodedir", "prjmodel", "prjmaxagents", "prjpriority"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
 
-    Args:
-        prjid: Project ID to update.
-        prjname: New name (optional).
-        prjversion: New version (optional).
-        prjpriority: New priority (optional).
-        prjphase: New phase (optional).
-        prjdesc: New description (optional).
-        prjcodedir: New code directory (optional).
-        prjprompt: New project prompt (optional).
-        prjclaudemd: New claude.md path (optional).
-        prjmodel: Claude model override (optional).
-        prjcommitenabled: Commit phase override (optional).
-        prjcommitbranchmode: Branch mode override (optional).
-        prjcommitbranchname: Branch name override (optional).
-
-    Returns:
-        True if project was updated, False if not found.
-    """
-    updates = []
-    values = []
-
-    if prjname is not None:
-        updates.append("prjname = ?")
-        values.append(prjname)
-    if prjversion is not None:
-        updates.append("prjversion = ?")
-        values.append(prjversion)
-    if prjpriority is not None:
-        updates.append("prjpriority = ?")
-        values.append(prjpriority)
-    if prjphase is not None:
-        updates.append("prjphase = ?")
-        values.append(prjphase)
-    if prjdesc is not None:
-        updates.append("prjdesc = ?")
-        values.append(prjdesc)
-    if prjcodedir is not None:
-        updates.append("prjcodedir = ?")
-        values.append(prjcodedir)
-    if prjprompt is not None:
-        updates.append("prjprompt = ?")
-        values.append(prjprompt)
-    if prjclaudemd is not None:
-        updates.append("prjclaudemd = ?")
-        values.append(prjclaudemd)
-    if prjmodel is not None:
-        updates.append("prjmodel = ?")
-        values.append(prjmodel)
-    if prjcommitenabled is not None:
-        updates.append("prjcommitenabled = ?")
-        values.append(prjcommitenabled)
-    if prjcommitbranchmode is not None:
-        updates.append("prjcommitbranchmode = ?")
-        values.append(prjcommitbranchmode)
-    if prjcommitbranchname is not None:
-        updates.append("prjcommitbranchname = ?")
-        values.append(prjcommitbranchname)
-
-    if not updates:
-        return False
-
-    updates.append("prjtouchts = ?")
-    values.append(datetime.now())
-    values.append(prjid)
+    fields["prjtouchts"] = datetime.now()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [prjid]
 
     with get_db() as conn:
-        cursor = conn.execute(
-            f"UPDATE project SET {', '.join(updates)} WHERE prjid = ?",
-            values,
-        )
-        return cursor.rowcount > 0
+        conn.execute(f"UPDATE project SET {set_clause} WHERE prjid = ?", values)
 
 
-def delete_project(prjid: int) -> bool:
-    """Delete a project and all related records.
-
-    Args:
-        prjid: Project ID to delete.
-
-    Returns:
-        True if project was deleted, False if not found.
-    """
+def delete_project(prjid: int) -> None:
+    """Delete a project and all cascading records."""
     with get_db() as conn:
-        # Delete related records first (cascade)
-        conn.execute("DELETE FROM learning WHERE prjid = ?", (prjid,))
-        conn.execute("DELETE FROM infrastructure WHERE prjid = ?", (prjid,))
-        conn.execute("DELETE FROM request WHERE prjid = ?", (prjid,))
-        cursor = conn.execute("DELETE FROM project WHERE prjid = ?", (prjid,))
-        return cursor.rowcount > 0
+        conn.execute("DELETE FROM project WHERE prjid = ?", (prjid,))
 
 
 # =============================================================================
-# Request Operations
+# Component Operations
 # =============================================================================
 
 
-def create_request(
+def create_component(
     prjid: int,
-    reqname: str,
-    reqprompt: str,
-    reqtype: str = "new_feature",
-    reqstatus: str = "tbd",
-    reqphase: str = "plan",
-    reqpriority: int = 5,
-    reqcodedir: str | None = None,
-    reqcommitenabled: int | None = None,
-    reqcommitbranch: str | None = None,
+    cmpname: str,
+    cmplevel: str,
+    parent_id: int | None = None,
+    cmpstatus: str = "draft",
+    cmpdesc: str | None = None,
+    cmpspec: str | None = None,
+    cmporder: int = 0,
 ) -> int:
-    """Create a new request.
-
-    Args:
-        prjid: Parent project ID.
-        reqname: Request name.
-        reqprompt: The prompt/description for this request.
-        reqtype: Type (new_feature, bug_fix, enhancement).
-        reqstatus: Status (tbd, wip, done, err, tmout).
-        reqphase: Phase (plan, dev, test, deploy, verify, document, commit, complete).
-        reqpriority: Priority level (1-10).
-        reqcodedir: Optional sandbox directory for code changes.
-        reqcommitenabled: Commit phase override (0=disabled, 1=use default, 2=force enabled).
-        reqcommitbranch: Branch name override for commit phase.
+    """Create a new component.
 
     Returns:
-        The new request ID.
+        The new component ID.
     """
     with get_db() as conn:
         cursor = conn.execute(
-            """
-            INSERT INTO request
-            (prjid, reqname, reqprompt, reqtype, reqstatus, reqphase, reqpriority, reqcodedir, reqcommitenabled, reqcommitbranch)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (prjid, reqname, reqprompt, reqtype, reqstatus, reqphase, reqpriority, reqcodedir, reqcommitenabled, reqcommitbranch),
+            """INSERT INTO component
+               (prjid, parent_id, cmpname, cmplevel, cmpstatus, cmpdesc, cmpspec, cmporder)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (prjid, parent_id, cmpname, cmplevel, cmpstatus, cmpdesc, cmpspec, cmporder),
         )
-        return cursor.lastrowid  # type: ignore
+        return cursor.lastrowid
 
 
-def get_request(reqid: int) -> dict | None:
-    """Get a request by ID.
-
-    Args:
-        reqid: Request ID.
-
-    Returns:
-        Request dict or None if not found.
-    """
+def get_component(cmpid: int) -> dict | None:
+    """Get a component by ID."""
     with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM request WHERE reqid = ?",
-            (reqid,),
-        )
+        cursor = conn.execute("SELECT * FROM component WHERE cmpid = ?", (cmpid,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
 
-def get_next_request() -> dict | None:
-    """Get the next request to process.
-
-    Returns the highest priority request with status 'tbd',
-    ordered by priority (ascending = higher priority) and timestamp.
-
-    Returns:
-        Request dict or None if no requests are pending.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            """
-            SELECT r.*, p.prjname, p.prjphase as project_phase, p.prjcodedir
-            FROM request r
-            JOIN project p ON r.prjid = p.prjid
-            WHERE r.reqstatus = 'tbd'
-            ORDER BY r.reqpriority ASC, r.reqtouchts ASC
-            LIMIT 1
-            """
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
-
-
-def list_requests(
+def list_components(
     prjid: int | None = None,
+    parent_id: int | None = None,
+    level: str | None = None,
     status: str | None = None,
-    phase: str | None = None,
-    order_by: str = "reqpriority",
 ) -> list[dict]:
-    """List requests with optional filters.
-
-    Args:
-        prjid: Optional filter by project ID.
-        status: Optional filter by status.
-        phase: Optional filter by phase.
-        order_by: Column to order by (default: reqpriority).
-
-    Returns:
-        List of request dicts.
-    """
+    """List components with optional filters."""
     conditions = []
-    values = []
+    params: list = []
 
     if prjid is not None:
-        conditions.append("r.prjid = ?")
-        values.append(prjid)
+        conditions.append("prjid = ?")
+        params.append(prjid)
+    if parent_id is not None:
+        conditions.append("parent_id = ?")
+        params.append(parent_id)
+    if level is not None:
+        conditions.append("cmplevel = ?")
+        params.append(level)
     if status is not None:
-        conditions.append("r.reqstatus = ?")
-        values.append(status)
-    if phase is not None:
-        conditions.append("r.reqphase = ?")
-        values.append(phase)
+        conditions.append("cmpstatus = ?")
+        params.append(status)
 
-    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    where = " AND ".join(conditions) if conditions else "1=1"
 
     with get_db() as conn:
         cursor = conn.execute(
-            f"""
-            SELECT r.*, p.prjname
-            FROM request r
-            JOIN project p ON r.prjid = p.prjid
-            {where_clause}
-            ORDER BY {order_by}
-            """,
-            values,
+            f"SELECT * FROM component WHERE {where} ORDER BY cmporder, cmpname",
+            params,
         )
         return [dict(row) for row in cursor.fetchall()]
 
 
-def update_request_status(reqid: int, status: str) -> bool:
-    """Update a request's status.
-
-    Args:
-        reqid: Request ID.
-        status: New status (tbd, wip, done, err, tmout).
+def get_component_tree(prjid: int) -> list[dict]:
+    """Get the full component tree for a project using recursive CTE.
 
     Returns:
-        True if request was updated, False if not found.
+        Flat list with depth column for tree rendering, children grouped
+        under their parent via a sort_path column.
     """
     with get_db() as conn:
         cursor = conn.execute(
-            "UPDATE request SET reqstatus = ?, reqtouchts = ? WHERE reqid = ?",
-            (status, datetime.now(), reqid),
-        )
-        return cursor.rowcount > 0
-
-
-def update_request_error(reqid: int, error: str | None) -> bool:
-    """Update a request's error message.
-
-    Args:
-        reqid: Request ID.
-        error: Error message, or None to clear.
-
-    Returns:
-        True if request was updated, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "UPDATE request SET reqerror = ?, reqtouchts = ? WHERE reqid = ?",
-            (error, datetime.now(), reqid),
-        )
-        return cursor.rowcount > 0
-
-
-def update_request_phase(reqid: int, phase: str) -> bool:
-    """Update a request's phase.
-
-    Args:
-        reqid: Request ID.
-        phase: New phase (plan, dev, test, deploy, verify, document, complete).
-
-    Returns:
-        True if request was updated, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "UPDATE request SET reqphase = ?, reqtouchts = ? WHERE reqid = ?",
-            (phase, datetime.now(), reqid),
-        )
-        return cursor.rowcount > 0
-
-
-def update_request_docpath(reqid: int, docpath: str) -> bool:
-    """Update a request's documentation path.
-
-    Args:
-        reqid: Request ID.
-        docpath: Path to documentation file.
-
-    Returns:
-        True if request was updated, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "UPDATE request SET reqdocpath = ?, reqtouchts = ? WHERE reqid = ?",
-            (docpath, datetime.now(), reqid),
-        )
-        return cursor.rowcount > 0
-
-
-def update_request_codedir(reqid: int, codedir: str) -> bool:
-    """Update a request's code directory.
-
-    Args:
-        reqid: Request ID.
-        codedir: Path to code sandbox directory.
-
-    Returns:
-        True if request was updated, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "UPDATE request SET reqcodedir = ?, reqtouchts = ? WHERE reqid = ?",
-            (codedir, datetime.now(), reqid),
-        )
-        return cursor.rowcount > 0
-
-
-def update_request_planpath(reqid: int, planpath: str) -> bool:
-    """Update a request's plan document path.
-
-    Args:
-        reqid: Request ID.
-        planpath: Path to PLAN document.
-
-    Returns:
-        True if request was updated, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "UPDATE request SET reqplanpath = ?, reqtouchts = ? WHERE reqid = ?",
-            (planpath, datetime.now(), reqid),
-        )
-        return cursor.rowcount > 0
-
-
-def update_request_testplanpath(reqid: int, testplanpath: str) -> bool:
-    """Update a request's test plan document path.
-
-    Args:
-        reqid: Request ID.
-        testplanpath: Path to TESTPLAN document.
-
-    Returns:
-        True if request was updated, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "UPDATE request SET reqtestplanpath = ?, reqtouchts = ? WHERE reqid = ?",
-            (testplanpath, datetime.now(), reqid),
-        )
-        return cursor.rowcount > 0
-
-
-def increment_request_test_retries(reqid: int) -> int:
-    """Increment a request's test retry counter.
-
-    Args:
-        reqid: Request ID.
-
-    Returns:
-        New retry count.
-    """
-    with get_db() as conn:
-        conn.execute(
-            "UPDATE request SET reqtestretries = reqtestretries + 1, reqtouchts = ? WHERE reqid = ?",
-            (datetime.now(), reqid),
-        )
-        cursor = conn.execute("SELECT reqtestretries FROM request WHERE reqid = ?", (reqid,))
-        row = cursor.fetchone()
-        return row[0] if row else 0
-
-
-def reset_request_test_retries(reqid: int) -> bool:
-    """Reset a request's test retry counter to 0.
-
-    Args:
-        reqid: Request ID.
-
-    Returns:
-        True if request was updated, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "UPDATE request SET reqtestretries = 0, reqtouchts = ? WHERE reqid = ?",
-            (datetime.now(), reqid),
-        )
-        return cursor.rowcount > 0
-
-
-def delete_request(reqid: int) -> bool:
-    """Delete a request.
-
-    Args:
-        reqid: Request ID to delete.
-
-    Returns:
-        True if request was deleted, False if not found.
-    """
-    with get_db() as conn:
-        # Delete related request infrastructure first
-        conn.execute("DELETE FROM request_infrastructure WHERE reqid = ?", (reqid,))
-        cursor = conn.execute("DELETE FROM request WHERE reqid = ?", (reqid,))
-        return cursor.rowcount > 0
-
-
-def update_request(
-    reqid: int,
-    reqname: str | None = None,
-    reqprompt: str | None = None,
-    reqtype: str | None = None,
-    reqpriority: int | None = None,
-    reqcodedir: str | None = None,
-    reqcommitenabled: int | None = None,
-    reqcommitbranch: str | None = None,
-) -> bool:
-    """Update a request (full field updates).
-
-    Note: prjid is not updatable - requests are locked to their project.
-
-    Args:
-        reqid: Request ID to update.
-        reqname: New name (optional).
-        reqprompt: New prompt (optional).
-        reqtype: New type (optional).
-        reqpriority: New priority (optional).
-        reqcodedir: New code directory (optional).
-        reqcommitenabled: Commit phase override (optional).
-        reqcommitbranch: Commit branch override (optional).
-
-    Returns:
-        True if request was updated, False if not found.
-    """
-    updates = []
-    values = []
-
-    if reqname is not None:
-        updates.append("reqname = ?")
-        values.append(reqname)
-    if reqprompt is not None:
-        updates.append("reqprompt = ?")
-        values.append(reqprompt)
-    if reqtype is not None:
-        updates.append("reqtype = ?")
-        values.append(reqtype)
-    if reqpriority is not None:
-        updates.append("reqpriority = ?")
-        values.append(reqpriority)
-    if reqcodedir is not None:
-        updates.append("reqcodedir = ?")
-        values.append(reqcodedir)
-    if reqcommitenabled is not None:
-        updates.append("reqcommitenabled = ?")
-        values.append(reqcommitenabled)
-    if reqcommitbranch is not None:
-        updates.append("reqcommitbranch = ?")
-        values.append(reqcommitbranch)
-
-    if not updates:
-        return False
-
-    updates.append("reqtouchts = ?")
-    values.append(datetime.now())
-    values.append(reqid)
-
-    with get_db() as conn:
-        cursor = conn.execute(
-            f"UPDATE request SET {', '.join(updates)} WHERE reqid = ?",
-            values,
-        )
-        return cursor.rowcount > 0
-
-
-# =============================================================================
-# Infrastructure Operations
-# =============================================================================
-
-
-def add_infrastructure(
-    prjid: int,
-    inftype: str,
-    infprovider: str = "local",
-    infval: str | None = None,
-    infnote: str | None = None,
-) -> int:
-    """Add infrastructure configuration to a project.
-
-    Args:
-        prjid: Project ID.
-        inftype: Infrastructure type (compute, storage, queue, access, ui).
-        infprovider: Provider (local, container, aws, gcp, azure).
-        infval: Provider-specific value.
-        infnote: Optional note.
-
-    Returns:
-        The new infrastructure ID.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO infrastructure (prjid, inftype, infprovider, infval, infnote)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (prjid, inftype, infprovider, infval, infnote),
-        )
-        return cursor.lastrowid  # type: ignore
-
-
-def get_project_infrastructure(prjid: int) -> list[dict]:
-    """Get all infrastructure for a project.
-
-    Args:
-        prjid: Project ID.
-
-    Returns:
-        List of infrastructure dicts.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM infrastructure WHERE prjid = ?",
+            """WITH RECURSIVE tree AS (
+                SELECT cmpid, parent_id, cmpname, cmplevel, cmpstatus, cmpdesc,
+                       cmpspec, is_collapsed, cmporder, 0 AS depth,
+                       printf('%04d-%s', cmporder, cmpname) AS sort_path
+                FROM component
+                WHERE prjid = ? AND parent_id IS NULL
+                UNION ALL
+                SELECT c.cmpid, c.parent_id, c.cmpname, c.cmplevel, c.cmpstatus,
+                       c.cmpdesc, c.cmpspec, c.is_collapsed, c.cmporder, t.depth + 1,
+                       t.sort_path || '/' || printf('%04d-%s', c.cmporder, c.cmpname)
+                FROM component c
+                JOIN tree t ON c.parent_id = t.cmpid
+            )
+            SELECT cmpid, parent_id, cmpname, cmplevel, cmpstatus, cmpdesc,
+                   cmpspec, is_collapsed, cmporder, depth
+            FROM tree ORDER BY sort_path""",
             (prjid,),
         )
         return [dict(row) for row in cursor.fetchall()]
 
 
-def delete_infrastructure(infid: int) -> bool:
-    """Delete an infrastructure record.
-
-    Args:
-        infid: Infrastructure ID to delete.
-
-    Returns:
-        True if record was deleted, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute("DELETE FROM infrastructure WHERE infid = ?", (infid,))
-        return cursor.rowcount > 0
-
-
-def update_infrastructure(
-    infid: int,
-    infprovider: str | None = None,
-    infval: str | None = None,
-    infnote: str | None = None,
-) -> bool:
-    """Update an infrastructure record.
-
-    Args:
-        infid: Infrastructure ID to update.
-        infprovider: New provider (optional).
-        infval: New value (optional).
-        infnote: New note (optional).
-
-    Returns:
-        True if record was updated, False if not found.
-    """
-    updates = []
-    values = []
-
-    if infprovider is not None:
-        updates.append("infprovider = ?")
-        values.append(infprovider)
-    if infval is not None:
-        updates.append("infval = ?")
-        values.append(infval)
-    if infnote is not None:
-        updates.append("infnote = ?")
-        values.append(infnote)
-
-    if not updates:
-        return False
-
-    values.append(infid)
-
+def get_component_ancestors(cmpid: int) -> list[dict]:
+    """Get all ancestors of a component (for breadcrumb navigation)."""
     with get_db() as conn:
         cursor = conn.execute(
-            f"UPDATE infrastructure SET {', '.join(updates)} WHERE infid = ?",
-            values,
-        )
-        return cursor.rowcount > 0
-
-
-# =============================================================================
-# Request Infrastructure Operations
-# =============================================================================
-
-
-def add_request_infrastructure(
-    reqid: int,
-    inftype: str,
-    infprovider: str = "local",
-    infval: str | None = None,
-    infnote: str | None = None,
-) -> int:
-    """Add infrastructure configuration override to a request.
-
-    Args:
-        reqid: Request ID.
-        inftype: Infrastructure type (compute, storage, queue, access, ui).
-        infprovider: Provider (local, container, aws, gcp, azure).
-        infval: Provider-specific value.
-        infnote: Optional note.
-
-    Returns:
-        The new request infrastructure ID.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO request_infrastructure (reqid, inftype, infprovider, infval, infnote)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (reqid, inftype, infprovider, infval, infnote),
-        )
-        return cursor.lastrowid  # type: ignore
-
-
-def get_request_infrastructure(reqid: int) -> list[dict]:
-    """Get all infrastructure overrides for a request.
-
-    Args:
-        reqid: Request ID.
-
-    Returns:
-        List of request infrastructure dicts.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM request_infrastructure WHERE reqid = ?",
-            (reqid,),
+            """WITH RECURSIVE ancestors AS (
+                SELECT cmpid, parent_id, cmpname, cmplevel, 0 AS depth
+                FROM component WHERE cmpid = ?
+                UNION ALL
+                SELECT c.cmpid, c.parent_id, c.cmpname, c.cmplevel, a.depth + 1
+                FROM component c
+                JOIN ancestors a ON c.cmpid = a.parent_id
+            )
+            SELECT * FROM ancestors ORDER BY depth DESC""",
+            (cmpid,),
         )
         return [dict(row) for row in cursor.fetchall()]
 
 
-def delete_request_infrastructure(rinfid: int) -> bool:
-    """Delete a request infrastructure record.
+def get_component_children(cmpid: int) -> list[dict]:
+    """Get direct children of a component."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM component WHERE parent_id = ? ORDER BY cmporder, cmpname",
+            (cmpid,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
 
-    Args:
-        rinfid: Request infrastructure ID to delete.
+
+def update_component(cmpid: int, **kwargs) -> None:
+    """Update a component."""
+    allowed = {"cmpname", "cmplevel", "cmpstatus", "cmpdesc", "cmpspec", "is_collapsed", "cmporder", "parent_id"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
+
+    fields["cmptouchts"] = datetime.now()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [cmpid]
+
+    with get_db() as conn:
+        conn.execute(f"UPDATE component SET {set_clause} WHERE cmpid = ?", values)
+
+
+def get_component_with_stats(cmpid: int) -> dict | None:
+    """Get a component with child counts, progress, and test summary."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT c.*,
+                      (SELECT COUNT(*) FROM component WHERE parent_id = c.cmpid) AS child_count,
+                      (SELECT COUNT(*) FROM component WHERE parent_id = c.cmpid
+                       AND cmpstatus IN ('built', 'tested')) AS children_complete,
+                      (SELECT COUNT(*) FROM test_spec WHERE cmpid = c.cmpid) AS test_count,
+                      (SELECT COUNT(*) FROM test_result tr
+                       JOIN test_spec ts ON tr.tsid = ts.tsid
+                       WHERE ts.cmpid = c.cmpid AND tr.trpassed = 1) AS tests_passed,
+                      (SELECT agtname FROM agent WHERE agtcmpid = c.cmpid
+                       AND agtstatus NOT IN ('terminated') LIMIT 1) AS assigned_agent,
+                      p.prjname
+               FROM component c
+               JOIN project p ON c.prjid = p.prjid
+               WHERE c.cmpid = ?""",
+            (cmpid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def delete_component(cmpid: int) -> None:
+    """Delete a component and all cascading records."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM component WHERE cmpid = ?", (cmpid,))
+
+
+# =============================================================================
+# Connection Map Operations
+# =============================================================================
+
+
+def create_connection(
+    from_cmpid: int,
+    to_cmpid: int,
+    condesc: str | None = None,
+    contype: str = "data",
+) -> int:
+    """Create a connection between components."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO connection_map (from_cmpid, to_cmpid, condesc, contype) VALUES (?, ?, ?, ?)",
+            (from_cmpid, to_cmpid, condesc, contype),
+        )
+        return cursor.lastrowid
+
+
+def get_connections_for_component(cmpid: int) -> list[dict]:
+    """Get all connections involving a component (both directions)."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT cm.*, c1.cmpname AS from_name, c2.cmpname AS to_name
+               FROM connection_map cm
+               JOIN component c1 ON cm.from_cmpid = c1.cmpid
+               JOIN component c2 ON cm.to_cmpid = c2.cmpid
+               WHERE cm.from_cmpid = ? OR cm.to_cmpid = ?""",
+            (cmpid, cmpid),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def delete_connection(conid: int) -> None:
+    """Delete a connection."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM connection_map WHERE conid = ?", (conid,))
+
+
+# =============================================================================
+# Dependency Operations
+# =============================================================================
+
+
+def create_dependency(cmpid: int, depends_on_cmpid: int) -> int:
+    """Create a dependency edge."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO dependency (cmpid, depends_on_cmpid) VALUES (?, ?)",
+            (cmpid, depends_on_cmpid),
+        )
+        return cursor.lastrowid
+
+
+def get_dependencies(cmpid: int) -> list[dict]:
+    """Get components that a given component depends on."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT d.*, c.cmpname AS depends_on_name, c.cmpstatus AS depends_on_status
+               FROM dependency d
+               JOIN component c ON d.depends_on_cmpid = c.cmpid
+               WHERE d.cmpid = ?""",
+            (cmpid,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_dependents(cmpid: int) -> list[dict]:
+    """Get components that depend on a given component."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT d.*, c.cmpname AS dependent_name
+               FROM dependency d
+               JOIN component c ON d.cmpid = c.cmpid
+               WHERE d.depends_on_cmpid = ?""",
+            (cmpid,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_dependency_graph(prjid: int) -> dict:
+    """Get the full dependency graph for a project.
 
     Returns:
-        True if record was deleted, False if not found.
+        Dict with 'nodes' (list of components) and 'edges' (list of dependency pairs).
+    """
+    with get_db() as conn:
+        nodes_cursor = conn.execute(
+            "SELECT cmpid, cmpname, cmplevel, cmpstatus FROM component WHERE prjid = ?",
+            (prjid,),
+        )
+        nodes = [dict(row) for row in nodes_cursor.fetchall()]
+
+        edges_cursor = conn.execute(
+            """SELECT d.cmpid, d.depends_on_cmpid
+               FROM dependency d
+               JOIN component c ON d.cmpid = c.cmpid
+               WHERE c.prjid = ?""",
+            (prjid,),
+        )
+        edges = [dict(row) for row in edges_cursor.fetchall()]
+
+    return {"nodes": nodes, "edges": edges}
+
+
+def find_ready_components(prjid: int) -> list[dict]:
+    """Find components whose dependencies are all satisfied (status in built/tested).
+
+    These are candidates for assignment to agents.
     """
     with get_db() as conn:
         cursor = conn.execute(
-            "DELETE FROM request_infrastructure WHERE rinfid = ?", (rinfid,)
+            """SELECT c.* FROM component c
+               WHERE c.prjid = ?
+               AND c.cmpstatus = 'validated'
+               AND NOT EXISTS (
+                   SELECT 1 FROM dependency d
+                   JOIN component dep ON d.depends_on_cmpid = dep.cmpid
+                   WHERE d.cmpid = c.cmpid
+                   AND dep.cmpstatus NOT IN ('built', 'tested')
+               )""",
+            (prjid,),
         )
-        return cursor.rowcount > 0
+        return [dict(row) for row in cursor.fetchall()]
 
 
-def update_request_infrastructure(
-    rinfid: int,
-    infprovider: str | None = None,
-    infval: str | None = None,
-    infnote: str | None = None,
-) -> bool:
-    """Update a request infrastructure record.
+def delete_dependency(depid: int) -> None:
+    """Delete a dependency."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM dependency WHERE depid = ?", (depid,))
 
-    Args:
-        rinfid: Request infrastructure ID to update.
-        infprovider: New provider (optional).
-        infval: New value (optional).
-        infnote: New note (optional).
 
-    Returns:
-        True if record was updated, False if not found.
-    """
-    updates = []
-    values = []
+# =============================================================================
+# Agent Operations
+# =============================================================================
 
-    if infprovider is not None:
-        updates.append("infprovider = ?")
-        values.append(infprovider)
-    if infval is not None:
-        updates.append("infval = ?")
-        values.append(infval)
-    if infnote is not None:
-        updates.append("infnote = ?")
-        values.append(infnote)
 
-    if not updates:
-        return False
+def create_agent(
+    prjid: int,
+    agtrole: str,
+    agtname: str | None = None,
+    agtmodel: str | None = None,
+    agtcmpid: int | None = None,
+) -> int:
+    """Create a new agent."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """INSERT INTO agent (prjid, agtrole, agtname, agtmodel, agtcmpid, agtstarted)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (prjid, agtrole, agtname, agtmodel, agtcmpid, datetime.now()),
+        )
+        return cursor.lastrowid
 
-    values.append(rinfid)
+
+def get_agent(agtid: int) -> dict | None:
+    """Get an agent by ID."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT a.*, c.cmpname, p.prjname
+               FROM agent a
+               LEFT JOIN component c ON a.agtcmpid = c.cmpid
+               LEFT JOIN project p ON a.prjid = p.prjid
+               WHERE a.agtid = ?""",
+            (agtid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def list_agents(
+    prjid: int | None = None,
+    status: str | None = None,
+    role: str | None = None,
+) -> list[dict]:
+    """List agents with optional filters."""
+    conditions = []
+    params: list = []
+
+    if prjid is not None:
+        conditions.append("a.prjid = ?")
+        params.append(prjid)
+    if status is not None:
+        conditions.append("a.agtstatus = ?")
+        params.append(status)
+    if role is not None:
+        conditions.append("a.agtrole = ?")
+        params.append(role)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
 
     with get_db() as conn:
         cursor = conn.execute(
-            f"UPDATE request_infrastructure SET {', '.join(updates)} WHERE rinfid = ?",
-            values,
+            f"""SELECT a.*, c.cmpname, p.prjname
+                FROM agent a
+                LEFT JOIN component c ON a.agtcmpid = c.cmpid
+                LEFT JOIN project p ON a.prjid = p.prjid
+                WHERE {where}
+                ORDER BY a.agttouchts DESC""",
+            params,
         )
-        return cursor.rowcount > 0
+        return [dict(row) for row in cursor.fetchall()]
 
 
-def get_effective_infrastructure(reqid: int) -> dict[str, dict]:
-    """Get merged infrastructure (project + request overrides).
+def update_agent(agtid: int, **kwargs) -> None:
+    """Update an agent."""
+    allowed = {"agtstatus", "agtname", "agtmodel", "agtshellpid", "agtcmpid", "agterror"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
 
-    Returns infrastructure configuration for a request, merging project-level
-    settings with request-level overrides. Request settings take precedence.
+    fields["agttouchts"] = datetime.now()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [agtid]
 
-    Args:
-        reqid: Request ID.
+    with get_db() as conn:
+        conn.execute(f"UPDATE agent SET {set_clause} WHERE agtid = ?", values)
 
-    Returns:
-        Dict mapping inftype -> infrastructure dict.
-    """
-    req = get_request(reqid)
-    if not req:
-        return {}
 
-    project_infra = get_project_infrastructure(req["prjid"])
-    request_infra = get_request_infrastructure(reqid)
+def delete_agent(agtid: int) -> None:
+    """Delete an agent."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM agent WHERE agtid = ?", (agtid,))
 
-    # Start with project infrastructure, keyed by inftype
-    effective: dict[str, dict] = {}
-    for i in project_infra:
-        effective[i["inftype"]] = {
-            "inftype": i["inftype"],
-            "infprovider": i["infprovider"],
-            "infval": i["infval"],
-            "infnote": i["infnote"],
-            "source": "project",
+
+def count_active_agents(prjid: int) -> int:
+    """Count agents that are actively working for a project."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM agent WHERE prjid = ? AND agtstatus IN ('working', 'waiting', 'idle')",
+            (prjid,),
+        )
+        return cursor.fetchone()[0]
+
+
+# =============================================================================
+# Agent Message Operations
+# =============================================================================
+
+
+def create_message(
+    to_agtid: int,
+    msgbody: str,
+    from_agtid: int | None = None,
+    msgtype: str = "normal",
+) -> int:
+    """Create a new message."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO agent_message (from_agtid, to_agtid, msgtype, msgbody) VALUES (?, ?, ?, ?)",
+            (from_agtid, to_agtid, msgtype, msgbody),
+        )
+        return cursor.lastrowid
+
+
+def get_message(msgid: int) -> dict | None:
+    """Get a message by ID."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT m.*, a1.agtname AS from_name, a2.agtname AS to_name
+               FROM agent_message m
+               LEFT JOIN agent a1 ON m.from_agtid = a1.agtid
+               LEFT JOIN agent a2 ON m.to_agtid = a2.agtid
+               WHERE m.msgid = ?""",
+            (msgid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def list_messages(
+    to_agtid: int | None = None,
+    from_agtid: int | None = None,
+    msgtype: str | None = None,
+    status: str | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    """List messages with optional filters."""
+    conditions = []
+    params: list = []
+
+    if to_agtid is not None:
+        conditions.append("m.to_agtid = ?")
+        params.append(to_agtid)
+    if from_agtid is not None:
+        conditions.append("m.from_agtid = ?")
+        params.append(from_agtid)
+    if msgtype is not None:
+        conditions.append("m.msgtype = ?")
+        params.append(msgtype)
+    if status is not None:
+        conditions.append("m.msgstatus = ?")
+        params.append(status)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+
+    with get_db() as conn:
+        cursor = conn.execute(
+            f"""SELECT m.*, a1.agtname AS from_name, a2.agtname AS to_name
+                FROM agent_message m
+                LEFT JOIN agent a1 ON m.from_agtid = a1.agtid
+                LEFT JOIN agent a2 ON m.to_agtid = a2.agtid
+                WHERE {where}
+                ORDER BY
+                    CASE m.msgtype WHEN 'urgent' THEN 0 ELSE 1 END,
+                    m.msgtouchts DESC
+                LIMIT ?""",
+            params + [limit],
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def dequeue_message(agtid: int) -> dict | None:
+    """Get and mark the next pending message for an agent (urgent first)."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT * FROM agent_message
+               WHERE to_agtid = ? AND msgstatus = 'queued'
+               ORDER BY
+                   CASE msgtype WHEN 'urgent' THEN 0 ELSE 1 END,
+                   msgtouchts ASC
+               LIMIT 1""",
+            (agtid,),
+        )
+        row = cursor.fetchone()
+        if row:
+            msg = dict(row)
+            conn.execute(
+                "UPDATE agent_message SET msgstatus = 'delivered' WHERE msgid = ?",
+                (msg["msgid"],),
+            )
+            return msg
+        return None
+
+
+def mark_message_read(msgid: int) -> None:
+    """Mark a message as read."""
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE agent_message SET msgstatus = 'read' WHERE msgid = ?",
+            (msgid,),
+        )
+
+
+def create_system_log(msgbody: str, related_agtid: int | None = None) -> int:
+    """Create a system log message (no sender/receiver required)."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO agent_message (from_agtid, to_agtid, msgtype, msgstatus, msgbody) VALUES (?, ?, 'normal', 'read', ?)",
+            (related_agtid, related_agtid, msgbody),
+        )
+        return cursor.lastrowid
+
+
+def count_pending_messages(agtid: int | None = None) -> int:
+    """Count queued messages, optionally for a specific agent."""
+    with get_db() as conn:
+        if agtid is not None:
+            cursor = conn.execute(
+                "SELECT COUNT(*) FROM agent_message WHERE to_agtid = ? AND msgstatus = 'queued'",
+                (agtid,),
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT COUNT(*) FROM agent_message WHERE msgstatus = 'queued'"
+            )
+        return cursor.fetchone()[0]
+
+
+# =============================================================================
+# Interview Operations
+# =============================================================================
+
+
+def create_interview(prjid: int, itvtype: str) -> int:
+    """Create a new interview session."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO interview (prjid, itvtype) VALUES (?, ?)",
+            (prjid, itvtype),
+        )
+        return cursor.lastrowid
+
+
+def get_interview(itvid: int) -> dict | None:
+    """Get an interview by ID."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT i.*, p.prjname,
+                      (SELECT COUNT(*) FROM interview_message WHERE itvid = i.itvid) AS message_count
+               FROM interview i
+               JOIN project p ON i.prjid = p.prjid
+               WHERE i.itvid = ?""",
+            (itvid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def list_interviews(prjid: int | None = None, status: str | None = None) -> list[dict]:
+    """List interviews with optional filters."""
+    conditions = []
+    params: list = []
+
+    if prjid is not None:
+        conditions.append("i.prjid = ?")
+        params.append(prjid)
+    if status is not None:
+        conditions.append("i.itvstatus = ?")
+        params.append(status)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+
+    with get_db() as conn:
+        cursor = conn.execute(
+            f"""SELECT i.*, p.prjname,
+                       (SELECT COUNT(*) FROM interview_message WHERE itvid = i.itvid) AS message_count
+                FROM interview i
+                JOIN project p ON i.prjid = p.prjid
+                WHERE {where}
+                ORDER BY i.itvtouchts DESC""",
+            params,
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_interview(itvid: int, **kwargs) -> None:
+    """Update an interview."""
+    allowed = {"itvstatus", "itvsummary"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
+
+    fields["itvtouchts"] = datetime.now()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [itvid]
+
+    with get_db() as conn:
+        conn.execute(f"UPDATE interview SET {set_clause} WHERE itvid = ?", values)
+
+
+def delete_interview(itvid: int) -> None:
+    """Delete an interview and all its messages."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM interview WHERE itvid = ?", (itvid,))
+
+
+# =============================================================================
+# Interview Message Operations
+# =============================================================================
+
+
+def create_interview_message(itvid: int, imsgsender: str, imsgcontent: str) -> int:
+    """Add a message to an interview."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO interview_message (itvid, imsgsender, imsgcontent) VALUES (?, ?, ?)",
+            (itvid, imsgsender, imsgcontent),
+        )
+        return cursor.lastrowid
+
+
+def get_interview_messages(itvid: int) -> list[dict]:
+    """Get all messages for an interview in chronological order."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM interview_message WHERE itvid = ? ORDER BY imsgtouchts ASC",
+            (itvid,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+# =============================================================================
+# Test Spec Operations
+# =============================================================================
+
+
+def create_test_spec(
+    cmpid: int,
+    tsname: str,
+    tsdesc: str | None = None,
+    tstype: str = "unit",
+) -> int:
+    """Create a test specification."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO test_spec (cmpid, tsname, tsdesc, tstype) VALUES (?, ?, ?, ?)",
+            (cmpid, tsname, tsdesc, tstype),
+        )
+        return cursor.lastrowid
+
+
+def get_test_spec(tsid: int) -> dict | None:
+    """Get a test spec by ID."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT ts.*, c.cmpname
+               FROM test_spec ts
+               JOIN component c ON ts.cmpid = c.cmpid
+               WHERE ts.tsid = ?""",
+            (tsid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def list_test_specs(cmpid: int | None = None, prjid: int | None = None) -> list[dict]:
+    """List test specs, optionally filtered."""
+    with get_db() as conn:
+        if cmpid is not None:
+            cursor = conn.execute(
+                """SELECT ts.*, c.cmpname
+                   FROM test_spec ts
+                   JOIN component c ON ts.cmpid = c.cmpid
+                   WHERE ts.cmpid = ?
+                   ORDER BY ts.tsname""",
+                (cmpid,),
+            )
+        elif prjid is not None:
+            cursor = conn.execute(
+                """SELECT ts.*, c.cmpname
+                   FROM test_spec ts
+                   JOIN component c ON ts.cmpid = c.cmpid
+                   WHERE c.prjid = ?
+                   ORDER BY c.cmpname, ts.tsname""",
+                (prjid,),
+            )
+        else:
+            cursor = conn.execute(
+                """SELECT ts.*, c.cmpname
+                   FROM test_spec ts
+                   JOIN component c ON ts.cmpid = c.cmpid
+                   ORDER BY ts.tsname"""
+            )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_test_spec(tsid: int, **kwargs) -> None:
+    """Update a test spec."""
+    allowed = {"tsname", "tsdesc", "tstype", "tsstatus"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
+
+    fields["tstouchts"] = datetime.now()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [tsid]
+
+    with get_db() as conn:
+        conn.execute(f"UPDATE test_spec SET {set_clause} WHERE tsid = ?", values)
+
+
+def delete_test_spec(tsid: int) -> None:
+    """Delete a test spec."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM test_spec WHERE tsid = ?", (tsid,))
+
+
+# =============================================================================
+# Build Task Operations
+# =============================================================================
+
+
+def create_build_task(
+    cmpid: int,
+    bttype: str = "implement",
+    btprompt: str | None = None,
+) -> int:
+    """Create a build task."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO build_task (cmpid, bttype, btprompt) VALUES (?, ?, ?)",
+            (cmpid, bttype, btprompt),
+        )
+        return cursor.lastrowid
+
+
+def get_build_task(btid: int) -> dict | None:
+    """Get a build task by ID."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT bt.*, c.cmpname, a.agtname
+               FROM build_task bt
+               JOIN component c ON bt.cmpid = c.cmpid
+               LEFT JOIN agent a ON bt.agtid = a.agtid
+               WHERE bt.btid = ?""",
+            (btid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def list_build_tasks(
+    prjid: int | None = None,
+    status: str | None = None,
+    agtid: int | None = None,
+) -> list[dict]:
+    """List build tasks with optional filters."""
+    conditions = []
+    params: list = []
+
+    if prjid is not None:
+        conditions.append("c.prjid = ?")
+        params.append(prjid)
+    if status is not None:
+        conditions.append("bt.btstatus = ?")
+        params.append(status)
+    if agtid is not None:
+        conditions.append("bt.agtid = ?")
+        params.append(agtid)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+
+    with get_db() as conn:
+        cursor = conn.execute(
+            f"""SELECT bt.*, c.cmpname, a.agtname
+                FROM build_task bt
+                JOIN component c ON bt.cmpid = c.cmpid
+                LEFT JOIN agent a ON bt.agtid = a.agtid
+                WHERE {where}
+                ORDER BY bt.bttouchts DESC""",
+            params,
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_build_task(btid: int, **kwargs) -> None:
+    """Update a build task."""
+    allowed = {"agtid", "btstatus", "btprompt", "btresult", "bterror"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
+
+    fields["bttouchts"] = datetime.now()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [btid]
+
+    with get_db() as conn:
+        conn.execute(f"UPDATE build_task SET {set_clause} WHERE btid = ?", values)
+
+
+def get_build_progress(prjid: int) -> dict:
+    """Get build progress summary for a project."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT btstatus, COUNT(*) AS cnt
+               FROM build_task bt
+               JOIN component c ON bt.cmpid = c.cmpid
+               WHERE c.prjid = ?
+               GROUP BY btstatus""",
+            (prjid,),
+        )
+        counts = {row["btstatus"]: row["cnt"] for row in cursor.fetchall()}
+        total = sum(counts.values())
+        return {
+            "total": total,
+            "complete": counts.get("complete", 0),
+            "in_progress": counts.get("in_progress", 0) + counts.get("assigned", 0),
+            "pending": counts.get("pending", 0),
+            "blocked": counts.get("blocked", 0),
+            "error": counts.get("error", 0),
+            "counts": counts,
         }
 
-    # Override with request infrastructure
-    for ri in request_infra:
-        effective[ri["inftype"]] = {
-            "inftype": ri["inftype"],
-            "infprovider": ri["infprovider"],
-            "infval": ri["infval"],
-            "infnote": ri["infnote"],
-            "source": "request",
-        }
 
-    return effective
+# =============================================================================
+# Build Plan Operations
+# =============================================================================
+
+
+def create_build_plan(cmpid: int, bpcontent: str, bpstatus: str = "draft") -> int:
+    """Create a build plan."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO build_plan (cmpid, bpcontent, bpstatus) VALUES (?, ?, ?)",
+            (cmpid, bpcontent, bpstatus),
+        )
+        return cursor.lastrowid
+
+
+def get_build_plan(cmpid: int) -> dict | None:
+    """Get the build plan for a component."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM build_plan WHERE cmpid = ? ORDER BY bptouchts DESC LIMIT 1",
+            (cmpid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def update_build_plan(bpid: int, **kwargs) -> None:
+    """Update a build plan."""
+    allowed = {"bpcontent", "bpstatus"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
+
+    fields["bptouchts"] = datetime.now()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [bpid]
+
+    with get_db() as conn:
+        conn.execute(f"UPDATE build_plan SET {set_clause} WHERE bpid = ?", values)
+
+
+# =============================================================================
+# Design Amendment Operations
+# =============================================================================
+
+
+def create_design_amendment(
+    cmpid: int,
+    dareason: str,
+    dachange: str,
+    agtid: int | None = None,
+) -> int:
+    """Create a design amendment (append-only)."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO design_amendment (cmpid, agtid, dareason, dachange) VALUES (?, ?, ?, ?)",
+            (cmpid, agtid, dareason, dachange),
+        )
+        return cursor.lastrowid
+
+
+def list_design_amendments(cmpid: int | None = None, prjid: int | None = None) -> list[dict]:
+    """List design amendments."""
+    with get_db() as conn:
+        if cmpid is not None:
+            cursor = conn.execute(
+                "SELECT * FROM design_amendment WHERE cmpid = ? ORDER BY datouchts DESC",
+                (cmpid,),
+            )
+        elif prjid is not None:
+            cursor = conn.execute(
+                """SELECT da.* FROM design_amendment da
+                   JOIN component c ON da.cmpid = c.cmpid
+                   WHERE c.prjid = ? ORDER BY da.datouchts DESC""",
+                (prjid,),
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM design_amendment ORDER BY datouchts DESC"
+            )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+# =============================================================================
+# Traceability Operations
+# =============================================================================
+
+
+def create_traceability(
+    prjid: int,
+    trcgoal: str,
+    cmpid: int | None = None,
+    trcdesc: str | None = None,
+) -> int:
+    """Create a traceability mapping."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO traceability (prjid, cmpid, trcgoal, trcdesc) VALUES (?, ?, ?, ?)",
+            (prjid, cmpid, trcgoal, trcdesc),
+        )
+        return cursor.lastrowid
+
+
+def list_traceability(prjid: int) -> list[dict]:
+    """List traceability mappings for a project."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT t.*, c.cmpname
+               FROM traceability t
+               LEFT JOIN component c ON t.cmpid = c.cmpid
+               WHERE t.prjid = ?
+               ORDER BY t.trctouchts""",
+            (prjid,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
 
 
 # =============================================================================
@@ -870,415 +1043,55 @@ def get_effective_infrastructure(reqid: int) -> dict[str, dict]:
 # =============================================================================
 
 
-def add_learning(prjid: int, lrndesc: str) -> int:
-    """Add a learning to a project.
-
-    Args:
-        prjid: Project ID. Use -1 for global learnings that apply to all projects.
-        lrndesc: Learning description (max 255 chars recommended).
-
-    Returns:
-        The new learning ID.
-    """
-    with get_db() as conn:
-        # For global learnings (prjid=-1), temporarily disable foreign key checks
-        if prjid == -1:
-            conn.execute("PRAGMA foreign_keys = OFF")
-
-        cursor = conn.execute(
-            "INSERT INTO learning (prjid, lrndesc) VALUES (?, ?)",
-            (prjid, lrndesc),
-        )
-        lastrowid = cursor.lastrowid
-
-        # Re-enable foreign keys if we disabled them
-        if prjid == -1:
-            conn.execute("PRAGMA foreign_keys = ON")
-
-        return lastrowid  # type: ignore
-
-
-def get_project_learnings(prjid: int) -> list[dict]:
-    """Get all learnings for a project.
-
-    Args:
-        prjid: Project ID.
-
-    Returns:
-        List of learning dicts, ordered by timestamp descending.
-    """
+def add_learning(
+    prjid: int,
+    lrndesc: str,
+    lrnsource: str | None = None,
+    lrnphase: str | None = None,
+) -> int:
+    """Add a learning."""
     with get_db() as conn:
         cursor = conn.execute(
-            "SELECT * FROM learning WHERE prjid = ? ORDER BY lrntouchts DESC",
-            (prjid,),
+            "INSERT INTO learning (prjid, lrndesc, lrnsource, lrnphase) VALUES (?, ?, ?, ?)",
+            (prjid, lrndesc, lrnsource, lrnphase),
         )
-        return [dict(row) for row in cursor.fetchall()]
-
-
-def delete_learning(lrnid: int) -> bool:
-    """Delete a learning record.
-
-    Args:
-        lrnid: Learning ID to delete.
-
-    Returns:
-        True if record was deleted, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute("DELETE FROM learning WHERE lrnid = ?", (lrnid,))
-        return cursor.rowcount > 0
+        return cursor.lastrowid
 
 
 def get_learning(lrnid: int) -> dict | None:
-    """Get a learning by ID.
-
-    Args:
-        lrnid: Learning ID.
-
-    Returns:
-        Learning dict or None if not found.
-    """
+    """Get a learning by ID."""
     with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT l.*, p.prjname FROM learning l LEFT JOIN project p ON l.prjid = p.prjid WHERE l.lrnid = ?",
-            (lrnid,),
-        )
+        cursor = conn.execute("SELECT * FROM learning WHERE lrnid = ?", (lrnid,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
 
-def update_learning(lrnid: int, lrndesc: str) -> bool:
-    """Update a learning's description.
-
-    Args:
-        lrnid: Learning ID to update.
-        lrndesc: New description.
-
-    Returns:
-        True if learning was updated, False if not found.
-    """
-    from datetime import datetime
-
-    with get_db() as conn:
-        cursor = conn.execute(
-            "UPDATE learning SET lrndesc = ?, lrntouchts = ? WHERE lrnid = ?",
-            (lrndesc, datetime.now(), lrnid),
-        )
-        return cursor.rowcount > 0
-
-
-def list_all_learnings(prjid: int | None = None) -> list[dict]:
-    """List all learnings, optionally filtered by project.
-
-    Args:
-        prjid: Optional project ID filter. Use -1 for global only.
-
-    Returns:
-        List of learning dicts with project name.
-    """
+def list_learnings(prjid: int | None = None) -> list[dict]:
+    """List learnings, optionally by project."""
     with get_db() as conn:
         if prjid is not None:
             cursor = conn.execute(
-                """
-                SELECT l.*, COALESCE(p.prjname, 'Global') as prjname
-                FROM learning l
-                LEFT JOIN project p ON l.prjid = p.prjid
-                WHERE l.prjid = ?
-                ORDER BY l.lrntouchts DESC
-                """,
+                "SELECT * FROM learning WHERE prjid = ? ORDER BY lrntouchts DESC",
                 (prjid,),
             )
         else:
-            cursor = conn.execute(
-                """
-                SELECT l.*, COALESCE(p.prjname, 'Global') as prjname
-                FROM learning l
-                LEFT JOIN project p ON l.prjid = p.prjid
-                ORDER BY l.prjid, l.lrntouchts DESC
-                """
-            )
+            cursor = conn.execute("SELECT * FROM learning ORDER BY lrntouchts DESC")
         return [dict(row) for row in cursor.fetchall()]
 
 
-def get_learnings_with_global(prjid: int) -> list[dict]:
-    """Get learnings for a project including global learnings (prjid=-1).
-
-    This is used when building prompts for the LLM - it merges
-    project-specific learnings with global learnings that apply
-    to all projects.
-
-    Args:
-        prjid: Project ID.
-
-    Returns:
-        List of learning dicts, ordered by timestamp descending.
-        Includes both project-specific (prjid) and global (prjid=-1) learnings.
-    """
+def update_learning(lrnid: int, lrndesc: str) -> None:
+    """Update a learning."""
     with get_db() as conn:
-        cursor = conn.execute(
-            """
-            SELECT l.*, COALESCE(p.prjname, 'Global') as prjname,
-                   CASE WHEN l.prjid = -1 THEN 'global' ELSE 'project' END as scope
-            FROM learning l
-            LEFT JOIN project p ON l.prjid = p.prjid
-            WHERE l.prjid = ? OR l.prjid = -1
-            ORDER BY l.lrntouchts DESC
-            """,
-            (prjid,),
+        conn.execute(
+            "UPDATE learning SET lrndesc = ?, lrntouchts = ? WHERE lrnid = ?",
+            (lrndesc, datetime.now(), lrnid),
         )
-        return [dict(row) for row in cursor.fetchall()]
 
 
-# =============================================================================
-# Infrastructure Option Operations (Wizard Selectable Options)
-# =============================================================================
-
-
-def add_infra_option(
-    opttype: str,
-    optname: str,
-    optprovider: str = "local",
-    optsortorder: int = 0,
-) -> int:
-    """Add an infrastructure option for the wizard.
-
-    Args:
-        opttype: Option type (compute, storage, queue, access).
-        optname: Display name (e.g., "AWS Lambda", "Local").
-        optprovider: Provider hint (local, aws, gcp, azure, container).
-        optsortorder: Sort order (lower = first).
-
-    Returns:
-        The new option ID.
-    """
+def delete_learning(lrnid: int) -> None:
+    """Delete a learning."""
     with get_db() as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO infra_option (opttype, optname, optprovider, optsortorder)
-            VALUES (?, ?, ?, ?)
-            """,
-            (opttype.lower(), optname, optprovider.lower(), optsortorder),
-        )
-        return cursor.lastrowid  # type: ignore
-
-
-def get_infra_options(opttype: str | None = None) -> list[dict]:
-    """Get infrastructure options, optionally filtered by type.
-
-    Args:
-        opttype: Optional filter by type (compute, storage, queue, access).
-
-    Returns:
-        List of option dicts, ordered by type and sort order.
-    """
-    with get_db() as conn:
-        if opttype:
-            cursor = conn.execute(
-                """
-                SELECT * FROM infra_option
-                WHERE opttype = ?
-                ORDER BY optsortorder, optname
-                """,
-                (opttype.lower(),),
-            )
-        else:
-            cursor = conn.execute(
-                """
-                SELECT * FROM infra_option
-                ORDER BY opttype, optsortorder, optname
-                """
-            )
-        return [dict(row) for row in cursor.fetchall()]
-
-
-def get_infra_options_by_type(opttype: str) -> list[str]:
-    """Get infrastructure option names for a specific type.
-
-    This is a convenience function for the wizard that returns
-    just the option names as a list.
-
-    Args:
-        opttype: Option type (compute, storage, queue, access).
-
-    Returns:
-        List of option names, ordered by sort order.
-    """
-    options = get_infra_options(opttype)
-    return [opt["optname"] for opt in options]
-
-
-def delete_infra_option(opttype: str, optname: str) -> bool:
-    """Delete an infrastructure option.
-
-    Args:
-        opttype: Option type.
-        optname: Option name.
-
-    Returns:
-        True if option was deleted, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "DELETE FROM infra_option WHERE opttype = ? AND optname = ?",
-            (opttype.lower(), optname),
-        )
-        return cursor.rowcount > 0
-
-
-def delete_infra_option_by_id(optid: int) -> bool:
-    """Delete an infrastructure option by ID.
-
-    Args:
-        optid: Option ID.
-
-    Returns:
-        True if option was deleted, False if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "DELETE FROM infra_option WHERE optid = ?",
-            (optid,),
-        )
-        return cursor.rowcount > 0
-
-
-def seed_default_infra_options() -> int:
-    """Seed the default infrastructure options if none exist.
-
-    This populates the infra_option table with the default options
-    from constants.py if the table is empty.
-
-    Returns:
-        Number of options added.
-    """
-    from ..constants import (
-        ACCESS_OPTIONS,
-        COMPUTE_OPTIONS,
-        QUEUE_OPTIONS,
-        STORAGE_OPTIONS,
-    )
-
-    # Check if any options exist
-    existing = get_infra_options()
-    if existing:
-        return 0
-
-    count = 0
-    defaults = {
-        "compute": COMPUTE_OPTIONS,
-        "storage": STORAGE_OPTIONS,
-        "queue": QUEUE_OPTIONS,
-        "access": ACCESS_OPTIONS,
-    }
-
-    for opttype, options in defaults.items():
-        for i, optname in enumerate(options):
-            # Determine provider from option name
-            provider = "local"
-            name_lower = optname.lower()
-            if "aws" in name_lower:
-                provider = "aws"
-            elif "gcp" in name_lower or "google" in name_lower:
-                provider = "gcp"
-            elif "azure" in name_lower:
-                provider = "azure"
-            elif "container" in name_lower or "docker" in name_lower:
-                provider = "container"
-
-            add_infra_option(
-                opttype=opttype,
-                optname=optname,
-                optprovider=provider,
-                optsortorder=i,
-            )
-            count += 1
-
-    return count
-
-
-# =============================================================================
-# Request Document Operations
-# =============================================================================
-
-
-def create_request_doc(
-    reqid: int,
-    doc_name: str,
-    doc_path: str,
-    doc_phase: str | None = None,
-) -> int:
-    """Create a new request document record.
-
-    Args:
-        reqid: Parent request ID.
-        doc_name: Document name (e.g., "PLAN.md", "custom_output.md").
-        doc_path: Full filesystem path to the document.
-        doc_phase: Optional phase that created the document (plan, dev, test, etc.).
-
-    Returns:
-        The new document ID.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO request_doc (reqid, doc_name, doc_path, doc_phase)
-            VALUES (?, ?, ?, ?)
-            """,
-            (reqid, doc_name, doc_path, doc_phase),
-        )
-        return cursor.lastrowid  # type: ignore
-
-
-def get_request_docs(reqid: int) -> list[dict]:
-    """Get all documents for a request.
-
-    Args:
-        reqid: Request ID.
-
-    Returns:
-        List of document dicts, ordered by created_at descending.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM request_doc WHERE reqid = ? ORDER BY created_at DESC",
-            (reqid,),
-        )
-        return [dict(row) for row in cursor.fetchall()]
-
-
-def get_request_doc(doc_id: int) -> dict | None:
-    """Get a single document by ID.
-
-    Args:
-        doc_id: Document ID.
-
-    Returns:
-        Document dict or None if not found.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "SELECT * FROM request_doc WHERE docid = ?",
-            (doc_id,),
-        )
-        row = cursor.fetchone()
-        return dict(row) if row else None
-
-
-def delete_request_docs(reqid: int) -> int:
-    """Delete all documents for a request.
-
-    Args:
-        reqid: Request ID.
-
-    Returns:
-        Number of documents deleted.
-    """
-    with get_db() as conn:
-        cursor = conn.execute(
-            "DELETE FROM request_doc WHERE reqid = ?",
-            (reqid,),
-        )
-        return cursor.rowcount
+        conn.execute("DELETE FROM learning WHERE lrnid = ?", (lrnid,))
 
 
 # =============================================================================
@@ -1286,59 +1099,36 @@ def delete_request_docs(reqid: int) -> int:
 # =============================================================================
 
 
-def set_daemon_pid(pid: int, loop_name: str = "bwloop") -> None:
-    """Set the daemon PID in the database.
-
-    Args:
-        pid: Process ID of the running daemon.
-        loop_name: Name identifier for this loop instance.
-    """
+def set_daemon_state(
+    pid: int | None = None,
+    dsstatus: str = "running",
+    dsphase: str | None = None,
+    dsproject_id: int | None = None,
+) -> None:
+    """Set the daemon state."""
     with get_db() as conn:
         conn.execute(
-            """
-            INSERT INTO daemon_state (id, pid, loop_name, started_at, updated_at)
-            VALUES (1, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                pid = excluded.pid,
-                loop_name = excluded.loop_name,
-                started_at = excluded.started_at,
-                updated_at = excluded.updated_at
-            """,
-            (pid, loop_name, datetime.now(), datetime.now()),
+            """UPDATE daemon_state
+               SET pid = ?, dsstatus = ?, dsphase = ?, dsproject_id = ?,
+                   started_at = ?, updated_at = ?
+               WHERE id = 1""",
+            (pid, dsstatus, dsphase, dsproject_id, datetime.now(), datetime.now()),
         )
 
 
-def get_daemon_pid() -> int | None:
-    """Get the daemon PID from the database.
-
-    Returns:
-        PID if set, None otherwise.
-    """
-    with get_db() as conn:
-        cursor = conn.execute("SELECT pid FROM daemon_state WHERE id = 1")
-        row = cursor.fetchone()
-        return row["pid"] if row and row["pid"] else None
-
-
-def get_daemon_info() -> dict | None:
-    """Get full daemon state info from the database.
-
-    Returns:
-        Dict with pid, loop_name, started_at, updated_at or None if not set.
-    """
+def get_daemon_state() -> dict | None:
+    """Get the current daemon state."""
     with get_db() as conn:
         cursor = conn.execute("SELECT * FROM daemon_state WHERE id = 1")
         row = cursor.fetchone()
-        if row and row["pid"]:
-            return dict(row)
-        return None
+        return dict(row) if row else None
 
 
-def clear_daemon_pid() -> None:
-    """Clear the daemon PID from the database."""
+def clear_daemon_state() -> None:
+    """Clear the daemon state (mark as stopped)."""
     with get_db() as conn:
         conn.execute(
-            "UPDATE daemon_state SET pid = NULL, loop_name = NULL, started_at = NULL, updated_at = ? WHERE id = 1",
+            "UPDATE daemon_state SET pid = NULL, dsstatus = 'stopped', dsphase = NULL, dsproject_id = NULL, updated_at = ? WHERE id = 1",
             (datetime.now(),),
         )
 
@@ -1350,3 +1140,799 @@ def update_daemon_heartbeat() -> None:
             "UPDATE daemon_state SET updated_at = ? WHERE id = 1",
             (datetime.now(),),
         )
+
+
+# =============================================================================
+# Document Operations
+# =============================================================================
+
+
+def create_document(
+    prjid: int,
+    docname: str,
+    docpath: str,
+    cmpid: int | None = None,
+    doctype: str | None = None,
+    docphase: str | None = None,
+    docdesc: str | None = None,
+) -> int:
+    """Create a document record."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO document (prjid, cmpid, docname, docpath, doctype, docphase, docdesc) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (prjid, cmpid, docname, docpath, doctype, docphase, docdesc),
+        )
+        return cursor.lastrowid
+
+
+def get_document(docid: int) -> dict | None:
+    """Get a document by ID."""
+    with get_db() as conn:
+        cursor = conn.execute("SELECT * FROM document WHERE docid = ?", (docid,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def list_documents(prjid: int | None = None, cmpid: int | None = None) -> list[dict]:
+    """List documents with optional filters."""
+    with get_db() as conn:
+        if cmpid is not None:
+            cursor = conn.execute(
+                "SELECT * FROM document WHERE cmpid = ? ORDER BY doctouchts DESC",
+                (cmpid,),
+            )
+        elif prjid is not None:
+            cursor = conn.execute(
+                "SELECT * FROM document WHERE prjid = ? ORDER BY doctouchts DESC",
+                (prjid,),
+            )
+        else:
+            cursor = conn.execute("SELECT * FROM document ORDER BY doctouchts DESC")
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def delete_document(docid: int) -> None:
+    """Delete a document record."""
+    with get_db() as conn:
+        conn.execute("DELETE FROM document WHERE docid = ?", (docid,))
+
+
+# =============================================================================
+# Test Result Operations
+# =============================================================================
+
+
+def create_test_result(
+    tsid: int,
+    trpassed: int = 0,
+    troutput: str | None = None,
+    trerror: str | None = None,
+    agtid: int | None = None,
+) -> int:
+    """Create a test result."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO test_result (tsid, agtid, trpassed, troutput, trerror) VALUES (?, ?, ?, ?, ?)",
+            (tsid, agtid, trpassed, troutput, trerror),
+        )
+        return cursor.lastrowid
+
+
+def list_test_results(tsid: int | None = None, prjid: int | None = None) -> list[dict]:
+    """List test results."""
+    with get_db() as conn:
+        if tsid is not None:
+            cursor = conn.execute(
+                "SELECT * FROM test_result WHERE tsid = ? ORDER BY trtouchts DESC",
+                (tsid,),
+            )
+        elif prjid is not None:
+            cursor = conn.execute(
+                """SELECT tr.* FROM test_result tr
+                   JOIN test_spec ts ON tr.tsid = ts.tsid
+                   JOIN component c ON ts.cmpid = c.cmpid
+                   WHERE c.prjid = ? ORDER BY tr.trtouchts DESC""",
+                (prjid,),
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM test_result ORDER BY trtouchts DESC"
+            )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+# =============================================================================
+# Stats / Dashboard Queries
+# =============================================================================
+
+
+def get_project_stats(prjid: int) -> dict:
+    """Get statistics for a project."""
+    with get_db() as conn:
+        cmp_cursor = conn.execute(
+            "SELECT cmpstatus, COUNT(*) AS cnt FROM component WHERE prjid = ? GROUP BY cmpstatus",
+            (prjid,),
+        )
+        component_counts = {row["cmpstatus"]: row["cnt"] for row in cmp_cursor.fetchall()}
+
+        agt_cursor = conn.execute(
+            "SELECT agtstatus, COUNT(*) AS cnt FROM agent WHERE prjid = ? GROUP BY agtstatus",
+            (prjid,),
+        )
+        agent_counts = {row["agtstatus"]: row["cnt"] for row in agt_cursor.fetchall()}
+
+        total_components = sum(component_counts.values())
+        total_agents = sum(agent_counts.values())
+
+        return {
+            "total_components": total_components,
+            "component_counts": component_counts,
+            "total_agents": total_agents,
+            "agent_counts": agent_counts,
+        }
+
+
+# =============================================================================
+# Agent Output Operations
+# =============================================================================
+
+
+def append_agent_output(agtid: int, aocontent: str) -> int:
+    """Append output content for an agent."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO agent_output (agtid, aocontent) VALUES (?, ?)",
+            (agtid, aocontent),
+        )
+        return cursor.lastrowid
+
+
+def get_agent_output(agtid: int, since_aoid: int | None = None) -> list[dict]:
+    """Get agent output, optionally since a given output ID."""
+    with get_db() as conn:
+        if since_aoid is not None:
+            cursor = conn.execute(
+                "SELECT * FROM agent_output WHERE agtid = ? AND aoid > ? ORDER BY aoid ASC",
+                (agtid, since_aoid),
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM agent_output WHERE agtid = ? ORDER BY aoid ASC",
+                (agtid,),
+            )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+# =============================================================================
+# Agent Settings Operations (Hierarchical)
+# =============================================================================
+
+
+def set_agent_setting(scope: str, scope_key: str, setting_key: str, setting_value: str) -> int:
+    """Set an agent setting (upsert)."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """INSERT INTO agent_settings (scope, scope_key, setting_key, setting_value)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(scope, scope_key, setting_key) DO UPDATE SET
+               setting_value = excluded.setting_value, astouchts = CURRENT_TIMESTAMP""",
+            (scope, scope_key, setting_key, setting_value),
+        )
+        return cursor.lastrowid
+
+
+def get_agent_setting(scope: str, scope_key: str, setting_key: str) -> str | None:
+    """Get a single agent setting value."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT setting_value FROM agent_settings WHERE scope = ? AND scope_key = ? AND setting_key = ?",
+            (scope, scope_key, setting_key),
+        )
+        row = cursor.fetchone()
+        return row["setting_value"] if row else None
+
+
+def list_agent_settings(scope: str | None = None, scope_key: str | None = None) -> list[dict]:
+    """List agent settings with optional filters."""
+    conditions = []
+    params: list = []
+
+    if scope is not None:
+        conditions.append("scope = ?")
+        params.append(scope)
+    if scope_key is not None:
+        conditions.append("scope_key = ?")
+        params.append(scope_key)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+
+    with get_db() as conn:
+        cursor = conn.execute(
+            f"SELECT * FROM agent_settings WHERE {where} ORDER BY scope, scope_key, setting_key",
+            params,
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def delete_agent_setting(scope: str, scope_key: str, setting_key: str) -> None:
+    """Delete an agent setting."""
+    with get_db() as conn:
+        conn.execute(
+            "DELETE FROM agent_settings WHERE scope = ? AND scope_key = ? AND setting_key = ?",
+            (scope, scope_key, setting_key),
+        )
+
+
+# =============================================================================
+# Agent Context Operations
+# =============================================================================
+
+
+def save_agent_context(
+    agtid: int,
+    accontext: str,
+    cmpid: int | None = None,
+    btid: int | None = None,
+    acstatus: str = "active",
+) -> int:
+    """Save an agent's work context."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "INSERT INTO agent_context (agtid, cmpid, btid, accontext, acstatus) VALUES (?, ?, ?, ?, ?)",
+            (agtid, cmpid, btid, accontext, acstatus),
+        )
+        return cursor.lastrowid
+
+
+def get_latest_agent_context(agtid: int) -> dict | None:
+    """Get the most recent context for an agent."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            "SELECT * FROM agent_context WHERE agtid = ? ORDER BY actouchts DESC LIMIT 1",
+            (agtid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def list_agent_contexts(agtid: int | None = None, btid: int | None = None) -> list[dict]:
+    """List agent contexts with optional filters."""
+    conditions = []
+    params: list = []
+
+    if agtid is not None:
+        conditions.append("agtid = ?")
+        params.append(agtid)
+    if btid is not None:
+        conditions.append("btid = ?")
+        params.append(btid)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+
+    with get_db() as conn:
+        cursor = conn.execute(
+            f"SELECT * FROM agent_context WHERE {where} ORDER BY actouchts DESC",
+            params,
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+# =============================================================================
+# Agent Count by Role
+# =============================================================================
+
+
+# =============================================================================
+# Tech Stack Catalog Operations
+# =============================================================================
+
+
+def search_techstack_catalog(query: str = "", limit: int = 50) -> list[dict]:
+    """Search the tech stack catalog by key, owner, or description."""
+    with get_db() as conn:
+        if query:
+            pattern = f"%{query}%"
+            cursor = conn.execute(
+                """SELECT * FROM techstack_catalog
+                   WHERE tscat_key LIKE ? OR tscat_owner LIKE ? OR tscat_desc LIKE ?
+                   ORDER BY tscat_key
+                   LIMIT ?""",
+                (pattern, pattern, pattern, limit),
+            )
+        else:
+            cursor = conn.execute(
+                "SELECT * FROM techstack_catalog ORDER BY tscat_key LIMIT ?",
+                (limit,),
+            )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def add_techstack_entry(
+    tscat_key: str,
+    tscat_owner: str | None = None,
+    tscat_desc: str | None = None,
+    tscat_notes: str | None = None,
+) -> int:
+    """Add a custom entry to the tech stack catalog."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """INSERT INTO techstack_catalog (tscat_key, tscat_owner, tscat_desc, tscat_notes, tscat_custom)
+               VALUES (?, ?, ?, ?, 1)""",
+            (tscat_key, tscat_owner, tscat_desc, tscat_notes),
+        )
+        return cursor.lastrowid
+
+
+def delete_techstack_entry(tscat_id: int) -> None:
+    """Delete a tech stack catalog entry (custom entries only)."""
+    with get_db() as conn:
+        conn.execute(
+            "DELETE FROM techstack_catalog WHERE tscat_id = ? AND tscat_custom = 1",
+            (tscat_id,),
+        )
+
+
+def count_agents_by_role(prjid: int | None = None) -> dict[str, int]:
+    """Count active agents grouped by role.
+
+    Returns:
+        Dict mapping role name to count of active agents.
+    """
+    with get_db() as conn:
+        if prjid is not None:
+            cursor = conn.execute(
+                """SELECT agtrole, COUNT(*) AS cnt FROM agent
+                   WHERE prjid = ? AND agtstatus NOT IN ('terminated')
+                   GROUP BY agtrole""",
+                (prjid,),
+            )
+        else:
+            cursor = conn.execute(
+                """SELECT agtrole, COUNT(*) AS cnt FROM agent
+                   WHERE agtstatus NOT IN ('terminated')
+                   GROUP BY agtrole"""
+            )
+        return {row["agtrole"]: row["cnt"] for row in cursor.fetchall()}
+
+
+# =============================================================================
+# Stats / Dashboard Queries
+# =============================================================================
+
+
+def get_dashboard_stats() -> dict:
+    """Get global dashboard statistics."""
+    with get_db() as conn:
+        prj_count = conn.execute("SELECT COUNT(*) FROM project").fetchone()[0]
+
+        agt_cursor = conn.execute(
+            "SELECT agtstatus, COUNT(*) AS cnt FROM agent GROUP BY agtstatus"
+        )
+        agent_counts = {row["agtstatus"]: row["cnt"] for row in agt_cursor.fetchall()}
+
+        phase_cursor = conn.execute(
+            "SELECT prjphase, COUNT(*) AS cnt FROM project GROUP BY prjphase"
+        )
+        phase_counts = {row["prjphase"]: row["cnt"] for row in phase_cursor.fetchall()}
+
+        pending_msgs = conn.execute(
+            "SELECT COUNT(*) FROM agent_message WHERE msgstatus = 'queued'"
+        ).fetchone()[0]
+
+        return {
+            "projects": prj_count,
+            "active_agents": agent_counts.get("working", 0),
+            "idle_agents": agent_counts.get("idle", 0),
+            "error_agents": agent_counts.get("error", 0),
+            "agent_counts": agent_counts,
+            "phase_counts": phase_counts,
+            "pending_messages": pending_msgs,
+        }
+
+
+# =============================================================================
+# Task Queue Operations
+# =============================================================================
+
+
+def enqueue_task(
+    prjid: int,
+    tqagent_type: str,
+    tqinstructions: str,
+    tqauthor: str = "system",
+    tqrequest_type: str = "task",
+    tqworkflow_step: int | None = None,
+    tqprevious_work: str | None = None,
+    tqcmpid: int | None = None,
+    tqpriority: int = 5,
+    tqmax_retries: int = 3,
+    tqstart_time: str | None = None,
+    tqexpire_time: str | None = None,
+    tqagent_name: str | None = None,
+    tqcollab_chain_id: int | None = None,
+    tqcollab_turn: int | None = None,
+) -> int:
+    """Insert a new task into the task queue.
+
+    Returns:
+        The new task queue ID.
+    """
+    with get_db() as conn:
+        cursor = conn.execute(
+            """INSERT INTO task_queue
+               (prjid, tqauthor, tqagent_type, tqinstructions, tqrequest_type,
+                tqworkflow_step, tqprevious_work, tqcmpid, tqpriority,
+                tqmax_retries, tqstart_time, tqexpire_time, tqagent_name,
+                tqcollab_chain_id, tqcollab_turn)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                prjid, tqauthor, tqagent_type, tqinstructions, tqrequest_type,
+                tqworkflow_step, tqprevious_work, tqcmpid, tqpriority,
+                tqmax_retries, tqstart_time, tqexpire_time, tqagent_name,
+                tqcollab_chain_id, tqcollab_turn,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def get_task(tqid: int) -> dict | None:
+    """Get a task by ID with joined agent info."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT tq.*, a.agtname, a.agtrole, a.agtstatus AS agent_status
+               FROM task_queue tq
+               LEFT JOIN agent a ON tq.tqagent_id = a.agtid
+               WHERE tq.tqid = ?""",
+            (tqid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def list_tasks(
+    prjid: int | None = None,
+    status: str | None = None,
+    agent_type: str | None = None,
+    workflow_step: int | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    """List tasks with optional filters."""
+    conditions = []
+    params: list = []
+
+    if prjid is not None:
+        conditions.append("tq.prjid = ?")
+        params.append(prjid)
+    if status is not None:
+        conditions.append("tq.tqstatus = ?")
+        params.append(status)
+    if agent_type is not None:
+        conditions.append("tq.tqagent_type = ?")
+        params.append(agent_type)
+    if workflow_step is not None:
+        conditions.append("tq.tqworkflow_step = ?")
+        params.append(workflow_step)
+
+    where = " AND ".join(conditions) if conditions else "1=1"
+
+    with get_db() as conn:
+        cursor = conn.execute(
+            f"""SELECT tq.*, a.agtname, a.agtrole
+                FROM task_queue tq
+                LEFT JOIN agent a ON tq.tqagent_id = a.agtid
+                WHERE {where}
+                ORDER BY tq.tqpriority ASC, tq.tqsent_time ASC
+                LIMIT ?""",
+            params + [limit],
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_task(tqid: int, **kwargs) -> None:
+    """Generic update for a task queue entry."""
+    allowed = {
+        "tqstatus", "tqagent_id", "tqpickup_time", "tqcomplete_time",
+        "tqduration_secs", "tqresult", "tqerror", "tqretry_count",
+        "tqprevious_work", "tqinstructions", "tqpriority",
+        "tqagent_name", "tqstart_time", "tqexpire_time",
+    }
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
+
+    fields["tqtouchts"] = datetime.now()
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [tqid]
+
+    with get_db() as conn:
+        conn.execute(f"UPDATE task_queue SET {set_clause} WHERE tqid = ?", values)
+
+
+def find_ready_tasks(prjid: int) -> list[dict]:
+    """Find tasks that are ready to be assigned.
+
+    Ready = status=pending, start_time<=now or NULL, not expired.
+    Ordered by priority ASC, sent_time ASC.
+    """
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT tq.*, a.agtname
+               FROM task_queue tq
+               LEFT JOIN agent a ON tq.tqagent_id = a.agtid
+               WHERE tq.prjid = ?
+                 AND tq.tqstatus = 'pending'
+                 AND (tq.tqstart_time IS NULL OR tq.tqstart_time <= CURRENT_TIMESTAMP)
+                 AND (tq.tqexpire_time IS NULL OR tq.tqexpire_time > CURRENT_TIMESTAMP)
+               ORDER BY tq.tqpriority ASC, tq.tqsent_time ASC""",
+            (prjid,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def assign_task(tqid: int, agtid: int) -> None:
+    """Assign a task to an agent."""
+    with get_db() as conn:
+        conn.execute(
+            """UPDATE task_queue
+               SET tqstatus = 'assigned', tqagent_id = ?, tqpickup_time = ?,
+                   tqtouchts = ?
+               WHERE tqid = ?""",
+            (agtid, datetime.now(), datetime.now(), tqid),
+        )
+
+
+def complete_task(tqid: int, result: str | None = None) -> None:
+    """Mark a task as complete and calculate duration."""
+    now = datetime.now()
+    with get_db() as conn:
+        # Get pickup time for duration calc
+        row = conn.execute(
+            "SELECT tqpickup_time FROM task_queue WHERE tqid = ?", (tqid,)
+        ).fetchone()
+        duration = None
+        if row and row["tqpickup_time"]:
+            try:
+                pickup = row["tqpickup_time"]
+                if isinstance(pickup, str):
+                    pickup = datetime.fromisoformat(pickup)
+                duration = (now - pickup).total_seconds()
+            except (ValueError, TypeError):
+                pass
+
+        conn.execute(
+            """UPDATE task_queue
+               SET tqstatus = 'complete', tqresult = ?, tqcomplete_time = ?,
+                   tqduration_secs = ?, tqtouchts = ?
+               WHERE tqid = ?""",
+            (result, now, duration, now, tqid),
+        )
+
+
+def fail_task(tqid: int, error: str) -> None:
+    """Increment retry count and set error. Status stays in_progress if retries remain."""
+    now = datetime.now()
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT tqretry_count, tqmax_retries FROM task_queue WHERE tqid = ?",
+            (tqid,),
+        ).fetchone()
+        if not row:
+            return
+
+        new_count = (row["tqretry_count"] or 0) + 1
+        max_retries = row["tqmax_retries"] or 3
+
+        if new_count >= max_retries:
+            conn.execute(
+                """UPDATE task_queue
+                   SET tqstatus = 'failed', tqerror = ?, tqretry_count = ?,
+                       tqcomplete_time = ?, tqtouchts = ?
+                   WHERE tqid = ?""",
+                (error, new_count, now, now, tqid),
+            )
+        else:
+            # Reset to pending for retry
+            conn.execute(
+                """UPDATE task_queue
+                   SET tqstatus = 'pending', tqerror = ?, tqretry_count = ?,
+                       tqagent_id = NULL, tqpickup_time = NULL, tqtouchts = ?
+                   WHERE tqid = ?""",
+                (error, new_count, now, tqid),
+            )
+
+
+def expire_overdue_tasks(prjid: int) -> int:
+    """Mark expired tasks. Returns count of expired tasks."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """UPDATE task_queue
+               SET tqstatus = 'expired', tqtouchts = ?
+               WHERE prjid = ?
+                 AND tqstatus IN ('pending', 'assigned')
+                 AND tqexpire_time IS NOT NULL
+                 AND tqexpire_time <= CURRENT_TIMESTAMP""",
+            (datetime.now(), prjid),
+        )
+        return cursor.rowcount
+
+
+def get_active_task_for_agent(agtid: int) -> dict | None:
+    """Get the current in_progress task for an agent."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT * FROM task_queue
+               WHERE tqagent_id = ? AND tqstatus IN ('assigned', 'in_progress')
+               ORDER BY tqtouchts DESC LIMIT 1""",
+            (agtid,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def get_task_queue_stats(prjid: int) -> dict:
+    """Get task queue statistics for a project."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT tqstatus, COUNT(*) AS cnt
+               FROM task_queue
+               WHERE prjid = ?
+               GROUP BY tqstatus""",
+            (prjid,),
+        )
+        counts = {row["tqstatus"]: row["cnt"] for row in cursor.fetchall()}
+        total = sum(counts.values())
+
+        # Average duration of complete tasks
+        dur_row = conn.execute(
+            """SELECT AVG(tqduration_secs) AS avg_dur
+               FROM task_queue
+               WHERE prjid = ? AND tqstatus = 'complete' AND tqduration_secs IS NOT NULL""",
+            (prjid,),
+        ).fetchone()
+        avg_duration = dur_row["avg_dur"] if dur_row and dur_row["avg_dur"] else 0.0
+
+        return {
+            "total": total,
+            "counts": counts,
+            "avg_duration_secs": round(avg_duration, 1),
+            "pending": counts.get("pending", 0),
+            "in_progress": counts.get("in_progress", 0) + counts.get("assigned", 0),
+            "complete": counts.get("complete", 0),
+            "failed": counts.get("failed", 0),
+            "expired": counts.get("expired", 0),
+            "cancelled": counts.get("cancelled", 0),
+        }
+
+
+def dedup_tasks(prjid: int, workflow_step: int, keep_tqid: int) -> int:
+    """Cancel duplicate tasks for a workflow step, keeping the specified one."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """UPDATE task_queue
+               SET tqstatus = 'cancelled', tqtouchts = ?
+               WHERE prjid = ? AND tqworkflow_step = ? AND tqid != ?
+                 AND tqstatus IN ('pending', 'assigned')""",
+            (datetime.now(), prjid, workflow_step, keep_tqid),
+        )
+        return cursor.rowcount
+
+
+def build_task_library(prjid: int) -> str:
+    """Build a markdown library summary from project documents."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT docname, docdesc, doctype, docphase
+               FROM document WHERE prjid = ?
+               ORDER BY docphase, docname""",
+            (prjid,),
+        )
+        docs = cursor.fetchall()
+
+    if not docs:
+        return "# Project Library\nNo documents available yet.\n"
+
+    lines = ["# Project Library\n"]
+    for doc in docs:
+        name = doc["docname"]
+        desc = doc["docdesc"] or ""
+        dtype = doc["doctype"] or ""
+        phase = doc["docphase"] or ""
+        lines.append(f"- **{name}** ({dtype}, {phase}): {desc}")
+
+    return "\n".join(lines) + "\n"
+
+
+def build_swarm_summary(prjid: int) -> str:
+    """Build a markdown summary of active agents."""
+    agents = list_agents(prjid=prjid)
+    active = [a for a in agents if a.get("agtstatus") not in ("terminated",)]
+
+    if not active:
+        return "# Active Agents\nNo agents currently active.\n"
+
+    lines = ["# Active Agents\n"]
+    for a in active:
+        name = a.get("agtname", f"Agent #{a['agtid']}")
+        role = a.get("agtrole", "unknown")
+        status = a.get("agtstatus", "unknown")
+        cmp = a.get("cmpname", "")
+        cmp_str = f" → {cmp}" if cmp else ""
+        lines.append(f"- **{name}** ({role}) [{status}]{cmp_str}")
+
+    return "\n".join(lines) + "\n"
+
+
+def calculate_project_progress(prjid: int) -> dict:
+    """Calculate overall project progress from the task queue.
+
+    Returns:
+        Dict with percent, current_step, by_phase breakdown, and task counts.
+    """
+    with get_db() as conn:
+        # Count tasks by status
+        cursor = conn.execute(
+            """SELECT tqstatus, COUNT(*) AS cnt
+               FROM task_queue WHERE prjid = ?
+               GROUP BY tqstatus""",
+            (prjid,),
+        )
+        counts = {row["tqstatus"]: row["cnt"] for row in cursor.fetchall()}
+        total = sum(counts.values())
+        complete = counts.get("complete", 0)
+
+        # Current step = max completed workflow step
+        step_row = conn.execute(
+            """SELECT MAX(tqworkflow_step) AS max_step
+               FROM task_queue
+               WHERE prjid = ? AND tqstatus = 'complete' AND tqworkflow_step IS NOT NULL""",
+            (prjid,),
+        ).fetchone()
+        current_step = step_row["max_step"] if step_row and step_row["max_step"] else 0
+
+        from ..constants import WORKFLOW_TOTAL_STEPS
+        percent = int((complete / total) * 100) if total > 0 else 0
+
+    return {
+        "percent": percent,
+        "current_step": current_step,
+        "total_steps": WORKFLOW_TOTAL_STEPS,
+        "tasks": {
+            "total": total,
+            "complete": complete,
+            "failed": counts.get("failed", 0),
+            "in_progress": counts.get("in_progress", 0) + counts.get("assigned", 0),
+            "pending": counts.get("pending", 0),
+        },
+    }
+
+
+def save_scoped_context(
+    agtid: int,
+    scope_level: str,
+    scope_id: int,
+    tqid: int | None,
+    context: str,
+    cmpid: int | None = None,
+) -> int:
+    """Save agent context with scope information."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """INSERT INTO agent_context
+               (agtid, cmpid, accontext, acstatus, acscopelevel, acscopeid, actqid)
+               VALUES (?, ?, ?, 'active', ?, ?, ?)""",
+            (agtid, cmpid, context, scope_level, scope_id, tqid),
+        )
+        return cursor.lastrowid
+
+
+def get_context_for_scope(scope_level: str, scope_id: int) -> dict | None:
+    """Get the most recent context for a given scope."""
+    with get_db() as conn:
+        cursor = conn.execute(
+            """SELECT * FROM agent_context
+               WHERE acscopelevel = ? AND acscopeid = ? AND acstatus = 'active'
+               ORDER BY actouchts DESC LIMIT 1""",
+            (scope_level, scope_id),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None

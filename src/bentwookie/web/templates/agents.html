@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Agents{% endblock %}
+{% block body_class %}workspace-page{% endblock %}
+
+{% block container_start %}<div class="agents-layout">{% endblock %}
+{% block container_end %}</div>{% endblock %}
+
+{% block content %}
+<!-- Left Panel: Agent Tree by Role -->
+<div class="agents-left">
+    <div class="agents-left-header">
+        <h3>Agent Swarm</h3>
+        <div class="button-group">
+            <button class="btn btn-sm btn-warning" onclick="agentMonitor.pauseAll()" title="Pause All">Pause</button>
+            <button class="btn btn-sm btn-success" onclick="agentMonitor.resumeAll()" title="Resume All">Resume</button>
+        </div>
+    </div>
+
+    <!-- Spawn Agent (inline) -->
+    {% if projects %}
+    <div class="agents-spawn-bar">
+        <select id="spawn-role" class="agents-spawn-select">
+            {% for role in AGENT_ROLES %}
+            <option value="{{ role }}">{{ ROLE_NAMES.get(role, role) }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-primary" onclick="spawnAgentFromBar()">+ Spawn</button>
+    </div>
+    {% endif %}
+
+    <!-- Agent Tree -->
+    <div class="agents-tree" id="agent-tree">
+        {% for role in AGENT_ROLES %}
+        {% set role_agents = agents_by_role.get(role, []) %}
+        <div class="agent-tree-group" data-role="{{ role }}">
+            <div class="agent-tree-group-header" onclick="toggleAgentGroup(this)">
+                <span class="tree-chevron">&#9654;</span>
+                <span class="agent-tree-group-label">{{ ROLE_NAMES.get(role, role) }}</span>
+                <span class="agent-tree-group-count">{{ role_agents|length }}</span>
+            </div>
+            <div class="agent-tree-group-children">
+                {% if role_agents %}
+                    {% for agent in role_agents %}
+                    <div class="agent-tree-item agent-tree-item-{{ agent.agtstatus }}"
+                         data-agtid="{{ agent.agtid }}"
+                         onclick="selectAgentFromTree({{ agent.agtid }})">
+                        <span class="agent-tree-status-dot agent-tree-dot-{{ agent.agtstatus }}"></span>
+                        <div class="agent-tree-item-info">
+                            <span class="agent-tree-item-name">{{ agent.agtname or ('Agent #' ~ agent.agtid) }}</span>
+                            <span class="agent-tree-item-meta">
+                                {% if agent.cmpname %}{{ agent.cmpname }}{% else %}{{ agent.agtstatus }}{% endif %}
+                            </span>
+                        </div>
+                        {% if agent.agtstatus not in ('terminated',) %}
+                        <button class="agent-tree-terminate" onclick="event.stopPropagation(); agentMonitor.terminateAgent({{ agent.agtid }})" title="Terminate">&times;</button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="agent-tree-empty">No agents</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Resizable Divider -->
+<div class="panel-divider" data-left=".agents-left" data-right=".agents-right"></div>
+
+<!-- Right Panel: Queue Log + Terminal -->
+<div class="agents-right">
+    <!-- Stats Bar -->
+    <div class="agents-stats-bar">
+        <div class="agents-stat"><span class="agents-stat-label">Active</span> <span class="agents-stat-value" id="stat-active">{{ agents|selectattr('agtstatus', 'eq', 'working')|list|length }}</span></div>
+        <div class="agents-stat"><span class="agents-stat-label">Idle</span> <span class="agents-stat-value" id="stat-idle">{{ agents|selectattr('agtstatus', 'eq', 'idle')|list|length }}</span></div>
+        <div class="agents-stat"><span class="agents-stat-label">Error</span> <span class="agents-stat-value agents-stat-error" id="stat-error">{{ agents|selectattr('agtstatus', 'eq', 'error')|list|length }}</span></div>
+        <div class="agents-stat"><span class="agents-stat-label">Queued</span> <span class="agents-stat-value" id="stat-messages">{{ pending_messages }}</span></div>
+    </div>
+
+    <!-- Queue Log -->
+    <div class="agents-queue-section">
+        <div class="agents-section-header">
+            <h3>Queue Log</h3>
+        </div>
+        <div class="agents-queue-log" id="queue-log">
+            {% if messages %}
+                {% for msg in messages %}
+                <div class="queue-log-entry queue-log-{{ msg.msgtype|default('normal') }}">
+                    <span class="queue-log-time">{{ msg.createts|default('')|truncate(19, True, '') }}</span>
+                    <span class="queue-log-type badge badge-sm badge-{{ msg.msgstatus|default('queued') }}">{{ msg.msgstatus|default('queued') }}</span>
+                    <span class="queue-log-from">{{ msg.from_name or ('Agent #' ~ msg.from_agtid) if msg.from_agtid else 'System' }}</span>
+                    <span class="queue-log-arrow">&rarr;</span>
+                    <span class="queue-log-to">{{ msg.to_name or ('Agent #' ~ msg.to_agtid) if msg.to_agtid else 'Broadcast' }}</span>
+                    <span class="queue-log-body">{{ msg.msgbody|default('')|truncate(80) }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="empty-state">No messages in queue.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Horizontal Resizable Divider -->
+    <div class="panel-divider-h" id="agents-h-divider" style="display: none;"></div>
+
+    <!-- Agent Detail (shown when agent selected) -->
+    <div class="agents-terminal-section" id="agent-terminal-section" style="display: none;">
+        <div class="agents-section-header">
+            <h3 id="terminal-agent-title">Agent Terminal</h3>
+            <button class="btn btn-sm" onclick="closeTerminal()" title="Close">&times;</button>
+        </div>
+        <div class="agents-terminal-info" id="agent-detail-info"></div>
+
+        <!-- Tab Bar -->
+        <div class="agents-tab-bar">
+            <button class="agents-tab active" data-tab="terminal" onclick="switchAgentTab('terminal')">Terminal</button>
+            <button class="agents-tab" data-tab="settings" onclick="switchAgentTab('settings')">Settings</button>
+        </div>
+
+        <!-- Terminal Tab -->
+        <div class="agents-tab-content" id="tab-terminal">
+            <div class="terminal-output agents-terminal-output" id="terminal-output">Select an agent to view output.</div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="agents-tab-content" id="tab-settings" style="display: none;">
+            <div class="agents-settings-form" style="padding: 1rem;">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label><strong>Agent Name</strong></label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="agent-rename-input" placeholder="Agent name" style="flex: 1;">
+                        <button class="btn btn-sm btn-primary" onclick="renameSelectedAgent()">Rename</button>
+                    </div>
+                </div>
+                <h4 style="margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--gold-border);">Per-Agent Overrides</h4>
+                <p class="help-text" style="margin-bottom: 0.75rem;">Override settings for this agent only. Leave blank to use the agent-type or global default.</p>
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label>Model</label>
+                    <select id="agent-setting-model">
+                        <option value="">Use Default</option>
+                        {% for m in VALID_MODELS %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row" style="margin-bottom: 0.75rem;">
+                    <div class="form-group">
+                        <label>Pause Between Jobs (seconds)</label>
+                        <input type="number" id="agent-setting-poll_interval" min="5" max="300" placeholder="Default">
+                    </div>
+                    <div class="form-group">
+                        <label>Timeout (minutes)</label>
+                        <input type="number" id="agent-setting-agent_timeout" min="1" placeholder="Default">
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="saveSelectedAgentSettings()">Save Agent Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/agent-monitor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/agent-terminal.js') }}"></script>
+<script>
+let agentMonitor;
+let agentTerminal;
+
+function toggleAgentGroup(headerEl) {
+    const group = headerEl.closest('.agent-tree-group');
+    const children = group.querySelector('.agent-tree-group-children');
+    const chevron = headerEl.querySelector('.tree-chevron');
+    const isExpanded = children.classList.toggle('expanded');
+    chevron.innerHTML = isExpanded ? '&#9660;' : '&#9654;';
+}
+
+function selectAgentFromTree(agtid) {
+    // Remove previous selection
+    document.querySelectorAll('.agent-tree-item').forEach(el => el.classList.remove('agent-tree-item-selected'));
+    // Mark new selection
+    const item = document.querySelector(`.agent-tree-item[data-agtid="${agtid}"]`);
+    if (item) item.classList.add('agent-tree-item-selected');
+
+    // Show terminal section and horizontal divider
+    document.getElementById('agent-terminal-section').style.display = 'flex';
+    document.getElementById('agents-h-divider').style.display = 'block';
+
+    // Delegate to agent monitor
+    agentMonitor.selectAgent(agtid);
+}
+
+function closeTerminal() {
+    document.getElementById('agent-terminal-section').style.display = 'none';
+    document.getElementById('agents-h-divider').style.display = 'none';
+    document.querySelectorAll('.agent-tree-item').forEach(el => el.classList.remove('agent-tree-item-selected'));
+    if (agentTerminal) agentTerminal.disconnect();
+    _selectedAgentData = null;
+}
+
+let _selectedAgentData = null;
+
+function switchAgentTab(tab) {
+    document.querySelectorAll('.agents-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.agents-tab-content').forEach(c => c.style.display = 'none');
+    document.querySelector(`.agents-tab[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById('tab-' + tab).style.display = '';
+
+    if (tab === 'settings' && _selectedAgentData) {
+        loadAgentSettings(_selectedAgentData.agtid);
+        document.getElementById('agent-rename-input').value = _selectedAgentData.agtname || '';
+    }
+}
+
+async function loadAgentSettings(agtid) {
+    try {
+        const resp = await fetch('/api/agent-settings?scope=agent&scope_key=' + agtid);
+        const settings = await resp.json();
+        // Clear fields first
+        document.getElementById('agent-setting-model').value = '';
+        document.getElementById('agent-setting-poll_interval').value = '';
+        document.getElementById('agent-setting-agent_timeout').value = '';
+        // Populate from saved settings
+        for (const s of settings) {
+            const el = document.getElementById('agent-setting-' + s.setting_key);
+            if (el) el.value = s.setting_value;
+        }
+    } catch (e) {
+        console.error('Failed to load agent settings:', e);
+    }
+}
+
+async function saveSelectedAgentSettings() {
+    if (!_selectedAgentData) return;
+    const agtid = _selectedAgentData.agtid;
+    const settings = {};
+    ['model', 'poll_interval', 'agent_timeout'].forEach(key => {
+        const el = document.getElementById('agent-setting-' + key);
+        settings[key] = el.value || null;
+    });
+    try {
+        const resp = await fetch('/api/agent-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scope: 'agent', scope_key: String(agtid), settings }),
+        });
+        if (resp.ok) {
+            alert('Agent settings saved');
+        } else {
+            const data = await resp.json();
+            alert(data.error || 'Failed to save');
+        }
+    } catch (e) {
+        console.error('Save agent settings error:', e);
+        alert('Failed to save settings');
+    }
+}
+
+async function renameSelectedAgent() {
+    if (!_selectedAgentData) return;
+    const agtid = _selectedAgentData.agtid;
+    const name = document.getElementById('agent-rename-input').value.trim();
+    if (!name) { alert('Name cannot be empty'); return; }
+    try {
+        const resp = await fetch('/api/agents/' + agtid + '/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (resp.ok) {
+            _selectedAgentData.agtname = name;
+            const titleEl = document.getElementById('terminal-agent-title');
+            const roleName = {{ ROLE_NAMES|tojson }};
+            if (titleEl) titleEl.textContent = (roleName[_selectedAgentData.agtrole] || _selectedAgentData.agtrole) + ' - ' + name;
+            agentMonitor.refreshAgentTree();
+        } else {
+            const data = await resp.json();
+            alert(data.error || 'Failed to rename');
+        }
+    } catch (e) {
+        console.error('Rename error:', e);
+        alert('Failed to rename agent');
+    }
+}
+
+function spawnAgentFromBar() {
+    const role = document.getElementById('spawn-role').value;
+    // Use the first available project as default
+    const defaultPrjid = {{ projects[0].prjid if projects else 0 }};
+    agentMonitor.spawnAgent(defaultPrjid, role);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const terminalEl = document.getElementById('terminal-output');
+    agentTerminal = terminalEl ? new AgentTerminal(terminalEl) : null;
+
+    agentMonitor = new AgentMonitor({
+        cardsId: 'agent-tree',
+        detailId: 'agent-terminal-section',
+        terminalId: 'terminal-output',
+    });
+
+    // Override selectAgent to also connect terminal stream and update title
+    const origSelect = agentMonitor.selectAgent.bind(agentMonitor);
+    agentMonitor.selectAgent = function(agtid) {
+        origSelect(agtid);
+        if (agentTerminal) {
+            agentTerminal.connect(agtid);
+        }
+    };
+
+    // Override renderDetail for the new layout
+    agentMonitor.renderDetail = function(agent) {
+        _selectedAgentData = agent;
+        const titleEl = document.getElementById('terminal-agent-title');
+        if (titleEl) {
+            const roleName = {{ ROLE_NAMES|tojson }};
+            titleEl.textContent = (roleName[agent.agtrole] || agent.agtrole) + ' - ' + (agent.agtname || 'Agent #' + agent.agtid);
+        }
+        const infoEl = document.getElementById('agent-detail-info');
+        if (infoEl) {
+            infoEl.innerHTML =
+                '<span class="badge badge-' + (agent.agtstatus || 'idle') + '">' + (agent.agtstatus || 'idle') + '</span>' +
+                '<span class="agents-terminal-meta">Project: ' + (agent.prjname || 'N/A') + '</span>' +
+                '<span class="agents-terminal-meta">Component: ' + (agent.cmpname || 'N/A') + '</span>' +
+                '<span class="agents-terminal-meta">Model: ' + (agent.agtmodel || 'default') + '</span>';
+        }
+        // Reset to terminal tab when selecting a new agent
+        switchAgentTab('terminal');
+    };
+
+    // Auto-expand groups that have agents
+    document.querySelectorAll('.agent-tree-group').forEach(group => {
+        const count = parseInt(group.querySelector('.agent-tree-group-count').textContent);
+        if (count > 0) {
+            const children = group.querySelector('.agent-tree-group-children');
+            const chevron = group.querySelector('.tree-chevron');
+            children.classList.add('expanded');
+            chevron.innerHTML = '&#9660;';
+        }
+    });
+
+    // Horizontal divider drag for queue log / terminal split
+    const hDivider = document.getElementById('agents-h-divider');
+    if (hDivider) {
+        let isDraggingH = false;
+        hDivider.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            isDraggingH = true;
+            hDivider.classList.add('dragging');
+            document.body.style.cursor = 'row-resize';
+            document.body.style.userSelect = 'none';
+        });
+        document.addEventListener('mousemove', function(e) {
+            if (!isDraggingH) return;
+            const rightPanel = document.querySelector('.agents-right');
+            if (!rightPanel) return;
+            const rect = rightPanel.getBoundingClientRect();
+            const queueSection = document.querySelector('.agents-queue-section');
+            const termSection = document.getElementById('agent-terminal-section');
+            if (!queueSection || !termSection) return;
+            const offsetY = e.clientY - rect.top;
+            const minH = 100;
+            const maxH = rect.height - 200;
+            const clamped = Math.min(Math.max(offsetY, minH), maxH);
+            queueSection.style.flex = 'none';
+            queueSection.style.height = clamped + 'px';
+            termSection.style.flex = '1';
+            termSection.style.maxHeight = 'none';
+            termSection.style.minHeight = '150px';
+        });
+        document.addEventListener('mouseup', function() {
+            if (isDraggingH) {
+                isDraggingH = false;
+                hDivider.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

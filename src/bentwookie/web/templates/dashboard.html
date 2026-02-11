@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Mission Control{% endblock %}
+{% block container_class %}container-wide{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>
+        <img src="{{ url_for('static', filename='icons/ui_dashboard.png') }}" alt="">
+        Mission Control
+    </h1>
+    <div class="button-group">
+        <a href="{{ url_for('workspace') }}" class="btn">Open Workspace</a>
+        <a href="{{ url_for('project_new') }}" class="btn btn-primary">New Project</a>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Projects</h3>
+        <span class="stat-value" id="stat-projects">{{ stats.projects }}</span>
+    </div>
+    <div class="stat-card">
+        <h3>Active Agents</h3>
+        <span class="stat-value" id="stat-active">{{ stats.active_agents }}</span>
+    </div>
+    <div class="stat-card">
+        <h3>Idle Agents</h3>
+        <span class="stat-value" id="stat-idle">{{ stats.idle_agents }}</span>
+    </div>
+    <div class="stat-card">
+        <h3>Queued Messages</h3>
+        <span class="stat-value" id="stat-messages">{{ stats.pending_messages }}</span>
+    </div>
+</div>
+
+<!-- Projects Overview -->
+<section class="section" style="margin-top: 1.5rem;">
+    <h2>Projects</h2>
+    {% if projects %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Phase</th>
+                <th>Components</th>
+                <th>Agents</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in projects %}
+            <tr>
+                <td><a href="{{ url_for('workspace', prjid=p.prjid) }}">{{ p.prjname }}</a></td>
+                <td><span class="badge badge-{{ p.prjphase }}">{{ PHASE_NAMES.get(p.prjphase, p.prjphase) }}</span></td>
+                <td>{{ p.get('component_count', 0) }}</td>
+                <td>{{ p.get('agent_count', 0) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No projects yet. <a href="{{ url_for('project_new') }}">Create your first project</a> to get started.</p>
+    {% endif %}
+</section>
+
+{% if agents %}
+<!-- Active Agents -->
+<section class="section">
+    <h2>Active Agents</h2>
+    <div class="agent-cards-grid">
+        {% for agent in agents %}
+        <div class="agent-card agent-card-{{ agent.agtstatus }}" data-agtid="{{ agent.agtid }}">
+            <div class="agent-card-header">
+                <span class="agent-card-role">{{ agent.agtname or ROLE_NAMES.get(agent.agtrole, agent.agtrole) }}</span>
+                <span class="badge badge-{{ agent.agtstatus }}">{{ agent.agtstatus }}</span>
+            </div>
+            <div class="agent-card-meta">
+                {{ ROLE_NAMES.get(agent.agtrole, agent.agtrole) }}
+                {% if agent.prjname %} &middot; {{ agent.prjname }}{% endif %}
+                {% if agent.cmpname %} / {{ agent.cmpname }}{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if urgent_messages %}
+<!-- Alerts -->
+<section class="section">
+    <h2>Alerts</h2>
+    {% for msg in urgent_messages %}
+    <div class="message-card message-urgent">
+        <div class="message-card-header">
+            <strong>{{ msg.from_name or 'System' }}</strong>
+            <span class="badge badge-error">Urgent</span>
+        </div>
+        <p>{{ msg.msgbody[:200] }}{% if msg.msgbody|length > 200 %}...{% endif %}</p>
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+<!-- Orchestrator Status -->
+<section class="section">
+    <h2>Orchestrator</h2>
+    <div class="detail-card" style="padding: 1rem;">
+        {% if daemon_state and daemon_state.dsstatus == 'running' %}
+        <span class="status-indicator status-ok">Running</span>
+        <p class="help-text" style="margin-top: 0.5rem;">The BentWookie orchestrator is running and coordinating agent work.</p>
+        {% elif daemon_state and daemon_state.dsstatus == 'paused' %}
+        <span class="status-indicator" style="background: var(--warning-bg); color: var(--brown-dark); border-color: var(--warning);">Paused</span>
+        <p class="help-text" style="margin-top: 0.5rem;">The orchestrator is paused. Agents will not receive new work until resumed.</p>
+        {% else %}
+        <span class="status-indicator status-stopped">Not Started</span>
+        <p class="help-text" style="margin-top: 0.5rem;">The orchestrator is not running. Start it with <code>bw run</code> from the command line to begin agent coordination.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof getSSE === 'function') {
+            const sse = getSSE();
+            sse.on('stats_update', function(data) {
+                const mapping = {
+                    'stat-projects': data.projects,
+                    'stat-active': data.active_agents,
+                    'stat-idle': data.idle_agents,
+                    'stat-messages': data.pending_messages,
+                };
+                Object.entries(mapping).forEach(([id, value]) => {
+                    if (value !== undefined) {
+                        const el = document.getElementById(id);
+                        if (el) el.textContent = value;
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Build Progress{% endblock %}
+{% block container_class %}container-wide{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>
+        <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
+        Build Progress
+    </h1>
+    {% if projects %}
+    <form method="get" style="display: flex; gap: 0.5rem; align-items: center;">
+        <select name="project" onchange="this.form.submit()">
+            <option value="">All Projects</option>
+            {% for p in projects %}
+            <option value="{{ p.prjid }}" {% if filter_project == p.prjid %}selected{% endif %}>{{ p.prjname }}</option>
+            {% endfor %}
+        </select>
+    </form>
+    {% endif %}
+</div>
+
+<div class="stats-grid" style="grid-template-columns: repeat(5, 1fr);">
+    <div class="stat-card"><h3>Complete</h3><span class="stat-value" style="color: var(--success);">{{ progress.complete }}</span></div>
+    <div class="stat-card"><h3>In Progress</h3><span class="stat-value" style="color: var(--warning);">{{ progress.in_progress }}</span></div>
+    <div class="stat-card"><h3>Pending</h3><span class="stat-value">{{ progress.pending }}</span></div>
+    <div class="stat-card"><h3>Blocked</h3><span class="stat-value" style="color: var(--brown-light);">{{ progress.blocked }}</span></div>
+    <div class="stat-card stat-error"><h3>Errors</h3><span class="stat-value">{{ progress.error }}</span></div>
+</div>
+
+{% if progress.total > 0 %}
+<div style="margin-bottom: 1.5rem;">
+    <div class="progress-bar" style="height: 1.5rem;">
+        <div class="progress-bar-fill progress-bar-fill-success" style="width: {{ (progress.complete / progress.total * 100) if progress.total else 0 }}%;"></div>
+    </div>
+    <div class="progress-bar-text">{{ progress.complete }}/{{ progress.total }} tasks complete</div>
+</div>
+{% endif %}
+
+<section class="section">
+    <h2>Dependency Graph</h2>
+    <div class="graph-container" id="build-graph" style="min-height: 500px;"></div>
+</section>
+
+<section class="section">
+    <h2>Build Queue</h2>
+    {% if build_tasks %}
+    <table class="table sortable">
+        <thead>
+            <tr><th>Component</th><th>Type</th><th>Status</th><th>Agent</th></tr>
+        </thead>
+        <tbody>
+            {% for bt in build_tasks %}
+            <tr>
+                <td>{{ bt.cmpname }}</td>
+                <td><span class="badge badge-info">{{ BUILD_TASK_TYPE_NAMES.get(bt.bttype, bt.bttype) }}</span></td>
+                <td><span class="badge badge-{{ bt.btstatus }}">{{ BUILD_TASK_STATUS_NAMES.get(bt.btstatus, bt.btstatus) }}</span></td>
+                <td>{{ bt.agtname or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No build tasks yet.</p>
+    {% endif %}
+</section>
+
+<section class="section">
+    <h2>Work Queue</h2>
+    <p class="help-text" style="margin-bottom: 1rem;">Add work items manually or let the orchestrator create them from the dependency graph.</p>
+    {% if filter_project %}
+    <div class="detail-card" style="padding: 1rem; margin-bottom: 1rem;">
+        <div class="inline-form" id="add-work-form">
+            <div class="form-group" style="margin-bottom: 0; flex: 1;">
+                <select id="wq-component">
+                    <option value="">Select component...</option>
+                    {% for bt in build_tasks %}
+                    <option value="{{ bt.cmpid }}">{{ bt.cmpname }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <select id="wq-type">
+                    {% for bt_type in BUILD_TASK_TYPES %}
+                    <option value="{{ bt_type }}">{{ BUILD_TASK_TYPE_NAMES.get(bt_type, bt_type) }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="addWorkItem()">Add Work Item</button>
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/dependency-graph.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const graphData = {{ graph_json|safe }};
+    if (graphData) {
+        const graph = new DependencyGraph('build-graph', {
+            width: document.getElementById('build-graph').offsetWidth || 1200,
+            height: 500
+        });
+        graph.render(graphData);
+    }
+});
+
+async function addWorkItem() {
+    const cmpid = document.getElementById('wq-component').value;
+    const bttype = document.getElementById('wq-type').value;
+
+    if (!cmpid) {
+        alert('Please select a component');
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/work-queue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cmpid: parseInt(cmpid), bttype }),
+        });
+        if (resp.ok) {
+            window.location.reload();
+        } else {
+            const data = await resp.json();
+            alert(data.error || 'Failed to add work item');
+        }
+    } catch (e) {
+        console.error('Add work item error:', e);
+        alert('Failed to add work item');
+    }
+}
+</script>
+{% endblock %}

@@ -6,6 +6,7 @@ from typing import Any
 
 # Default settings file location
 DEFAULT_SETTINGS_PATH = Path("data/settings.json")
+_settings_path: Path | None = None
 
 # Auth modes
 AUTH_MODE_API = "api"      # Uses ANTHROPIC_API_KEY environment variable
@@ -27,12 +28,38 @@ DEFAULT_SETTINGS = {
     "commit_branch_name": None,  # Branch name when mode="other"
     "web_host": "127.0.0.1",  # Default web server host
     "web_port": 5000,  # Default web server port
+    # V2 settings
+    "max_concurrent_agents": 5,  # Max agents running simultaneously
+    "agent_timeout": 30,  # Agent task timeout in minutes
+    "define_timeout": 30,  # Define phase timeout in minutes
+    "design_timeout": 120,  # Design phase timeout in minutes
+    "validate_timeout": 60,  # Validate phase timeout in minutes
+    "build_timeout": 240,  # Build phase timeout in minutes
+    "voice_enabled": True,  # Enable voice input in interviews
+    "sse_enabled": True,  # Enable server-sent events
+    # Per-type agent limits
+    "max_enterprise_architect": 1,
+    "max_business_architect": 1,
+    "max_service_engineer": 5,
+    "max_coding_agent": 10,
+    "max_testing_agent": 5,
+    # Task queue settings
+    "safe_word": "KAMILI",
+    "max_task_retries": 3,
+    "orchestrator_poll_interval": 2,
+    "agent_permission_mode": "dangerously-skip-permissions",
 }
 
 
 def get_settings_path() -> Path:
     """Get the path to the settings file."""
-    return DEFAULT_SETTINGS_PATH
+    return _settings_path or DEFAULT_SETTINGS_PATH
+
+
+def set_settings_path(path: str | Path) -> None:
+    """Set a custom path for the settings file."""
+    global _settings_path
+    _settings_path = Path(path)
 
 
 def load_settings() -> dict[str, Any]:
@@ -384,3 +411,170 @@ def set_web_port(port: int) -> None:
         port: Port number to bind to.
     """
     set_setting("web_port", port)
+
+
+# =============================================================================
+# V2 Agent Settings
+# =============================================================================
+
+
+def get_max_concurrent_agents() -> int:
+    """Get the maximum number of concurrent agents."""
+    return get_setting("max_concurrent_agents", 5)
+
+
+def set_max_concurrent_agents(count: int) -> None:
+    """Set the maximum number of concurrent agents."""
+    set_setting("max_concurrent_agents", max(1, count))
+
+
+def get_agent_timeout() -> int:
+    """Get the agent task timeout in minutes."""
+    return get_setting("agent_timeout", 30)
+
+
+def set_agent_timeout(minutes: int) -> None:
+    """Set the agent task timeout in minutes."""
+    set_setting("agent_timeout", max(1, minutes))
+
+
+def get_phase_timeout(phase: str) -> int:
+    """Get the timeout for a specific phase in minutes."""
+    key = f"{phase}_timeout"
+    defaults = {
+        "define_timeout": 30,
+        "design_timeout": 120,
+        "validate_timeout": 60,
+        "build_timeout": 240,
+    }
+    return get_setting(key, defaults.get(key, 60))
+
+
+def set_phase_timeout(phase: str, minutes: int) -> None:
+    """Set the timeout for a specific phase in minutes."""
+    set_setting(f"{phase}_timeout", max(1, minutes))
+
+
+def is_voice_enabled() -> bool:
+    """Check if voice input is enabled."""
+    return get_setting("voice_enabled", True)
+
+
+def set_voice_enabled(enabled: bool) -> None:
+    """Enable or disable voice input."""
+    set_setting("voice_enabled", enabled)
+
+
+def is_sse_enabled() -> bool:
+    """Check if SSE is enabled."""
+    return get_setting("sse_enabled", True)
+
+
+def set_sse_enabled(enabled: bool) -> None:
+    """Enable or disable SSE."""
+    set_setting("sse_enabled", enabled)
+
+
+# =============================================================================
+# Hierarchical Settings Resolution
+# =============================================================================
+
+
+def resolve_setting(
+    key: str,
+    agent_id: int | None = None,
+    agent_role: str | None = None,
+) -> Any:
+    """Resolve a setting using hierarchical cascade.
+
+    Resolution order: individual agent > agent type > global setting.
+
+    Args:
+        key: Setting key to resolve.
+        agent_id: Optional specific agent ID for per-agent override.
+        agent_role: Optional agent role for per-type override.
+
+    Returns:
+        The resolved setting value.
+    """
+    from .db.queries import get_agent_setting
+
+    # 1. Check individual agent override
+    if agent_id is not None:
+        value = get_agent_setting("agent", str(agent_id), key)
+        if value is not None:
+            return _coerce_setting_value(key, value)
+
+    # 2. Check agent type override
+    if agent_role is not None:
+        value = get_agent_setting("agent_type", agent_role, key)
+        if value is not None:
+            return _coerce_setting_value(key, value)
+
+    # 3. Fall back to global setting
+    return get_setting(key)
+
+
+# =============================================================================
+# Task Queue Settings
+# =============================================================================
+
+
+def get_safe_word() -> str:
+    """Get the safe word agents use to signal task completion."""
+    return get_setting("safe_word", "KAMILI")
+
+
+def set_safe_word(word: str) -> None:
+    """Set the safe word for agent task completion signaling.
+
+    Args:
+        word: The safe word string.
+
+    Raises:
+        ValueError: If word is empty.
+    """
+    if not word or not word.strip():
+        raise ValueError("Safe word must not be empty")
+    set_setting("safe_word", word.strip())
+
+
+def get_max_task_retries() -> int:
+    """Get the maximum number of task retries before marking failed."""
+    return get_setting("max_task_retries", 3)
+
+
+def get_orchestrator_poll_interval() -> int:
+    """Get the orchestrator poll interval in seconds."""
+    return get_setting("orchestrator_poll_interval", 2)
+
+
+def _coerce_setting_value(key: str, value: str) -> Any:
+    """Coerce a string setting value to the appropriate type.
+
+    Agent settings are stored as strings in the DB; this converts
+    them back to the type expected by the global defaults.
+
+    Args:
+        key: Setting key (used to determine expected type).
+        value: String value from the database.
+
+    Returns:
+        Coerced value.
+    """
+    defaults = DEFAULT_SETTINGS
+    if key in defaults:
+        expected_type = type(defaults[key])
+        if expected_type is int:
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return defaults[key]
+        elif expected_type is bool:
+            return value.lower() in ("true", "1", "yes")
+        elif expected_type is float:
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return defaults[key]
+    return value

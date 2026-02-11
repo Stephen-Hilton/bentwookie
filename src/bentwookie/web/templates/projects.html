@@ -1,28 +1,43 @@
 {% extends "base.html" %}
 {% block title_suffix %} - Projects{% endblock %}
-
 {% block content %}
 <div class="page-header">
     <h1>
         <img src="{{ url_for('static', filename='icons/ui_viewproject.png') }}" alt="">
         Projects
     </h1>
-    <a href="{{ url_for('project_new') }}" class="btn btn-primary">
-        <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
-        New Project
-    </a>
+    <a href="{{ url_for('project_new') }}" class="btn btn-primary">New Project</a>
+</div>
+
+<div class="filter-form">
+    <form method="get" style="display: flex; gap: 1rem; align-items: flex-end; width: 100%;">
+        <div class="filter-group">
+            <label>Phase</label>
+            <select name="phase" onchange="this.form.submit()">
+                <option value="">All Phases</option>
+                {% for p in PHASES %}
+                <option value="{{ p }}" {% if filter_phase == p %}selected{% endif %}>{{ PHASE_NAMES.get(p, p) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Search</label>
+            <input type="text" name="search" value="{{ filter_search or '' }}" placeholder="Project name...">
+        </div>
+        <button type="submit" class="btn btn-sm">Filter</button>
+    </form>
 </div>
 
 {% if projects %}
-<table class="table" data-sortable-table="true">
+<table class="table sortable">
     <thead>
         <tr>
-            <th data-sortable="true" data-sort-type="number">ID</th>
-            <th data-sortable="true" data-sort-type="text">Name</th>
-            <th data-sortable="true" data-sort-type="text">Version</th>
-            <th data-sortable="true" data-sort-type="number">Priority</th>
-            <th data-sortable="true" data-sort-type="text">Phase</th>
-            <th data-sortable="true" data-sort-type="number">Requests</th>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Phase</th>
+            <th>Priority</th>
+            <th>Components</th>
+            <th>Progress</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -31,29 +46,28 @@
         <tr>
             <td>{{ p.prjid }}</td>
             <td><a href="{{ url_for('project_view', prjid=p.prjid) }}">{{ p.prjname }}</a></td>
-            <td>{{ p.prjversion }}</td>
-            <td>{{ p.prjpriority }}</td>
-            <td>{{ p.prjphase }}</td>
-            <td data-sort-value="{{ p.request_count }}">{{ p.request_count }} ({{ p.pending_count }} pending)</td>
+            <td><span class="badge badge-{{ p.prjphase }}">{{ PHASE_NAMES.get(p.prjphase, p.prjphase) }}</span></td>
+            <td>{{ p.prjpriority or DEFAULT_PRIORITY }}</td>
+            <td>{{ p.component_count|default(0) }}</td>
             <td>
-                <a href="{{ url_for('project_view', prjid=p.prjid) }}" class="btn btn-sm">
-                    <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
-                    View
-                </a>
-                <a href="{{ url_for('project_edit', prjid=p.prjid) }}" class="btn btn-sm">
-                    <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
-                    Edit
-                </a>
-                <form action="{{ url_for('project_delete_route', prjid=p.prjid) }}" method="POST" style="display:inline;"
-                      onsubmit="return confirm('Delete project {{ p.prjname }}?');">
-                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
+                <div class="progress-bar" style="width: 100px;">
+                    <div class="progress-bar-fill" style="width: {{ p.progress|default(0) }}%;"></div>
+                </div>
+            </td>
+            <td>
+                <div class="button-group">
+                    <a href="{{ url_for('project_edit', prjid=p.prjid) }}" class="btn btn-sm">Edit</a>
+                    <form method="post" action="{{ url_for('project_delete_route', prjid=p.prjid) }}" style="display:inline;"
+                          onsubmit="return confirm('Delete project?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 {% else %}
-<p class="empty-state">No projects yet. <a href="{{ url_for('project_new') }}">Create one</a></p>
+<p class="empty-state">No projects found. <a href="{{ url_for('project_new') }}">Create one</a></p>
 {% endif %}
 {% endblock %}

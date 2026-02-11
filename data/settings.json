@@ -10,5 +10,13 @@
   "commit_branch_mode": "current",
   "commit_branch_name": null,
   "web_host": "127.0.0.1",
-  "web_port": 5000
+  "web_port": 5000,
+  "max_concurrent_agents": 10,
+  "agent_timeout": 30,
+  "define_timeout": 30,
+  "design_timeout": 120,
+  "validate_timeout": 60,
+  "build_timeout": 240,
+  "voice_enabled": true,
+  "sse_enabled": true
 }

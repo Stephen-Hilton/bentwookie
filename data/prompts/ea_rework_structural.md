@@ -1,0 +1,1 @@
+[REWORK-STRUCTURAL] Task {task_id} on component '{cmp_name}' requires architectural review: {error}

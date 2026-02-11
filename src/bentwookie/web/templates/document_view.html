@@ -1,65 +1,16 @@
 {% extends "base.html" %}
-{% block title_suffix %} - {{ doc.doc_name }}{% endblock %}
+{% block title_suffix %} - {{ doc.docname }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>
-        <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
-        {{ doc.doc_name }}
-    </h1>
-    <div class="button-group">
-        {% if req %}
-        <a href="{{ url_for('request_view', reqid=req.reqid) }}" class="btn">
-            <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
-            Back to Request
-        </a>
-        {% endif %}
-    </div>
-</div>
-
-<div class="detail-card">
-    <dl class="detail-list">
-        <dt>Document ID</dt>
-        <dd>{{ doc.docid }}</dd>
-
-        {% if req %}
-        <dt>Request</dt>
-        <dd><a href="{{ url_for('request_view', reqid=req.reqid) }}">{{ req.reqname }}</a></dd>
-        {% endif %}
-
-        <dt>Phase</dt>
-        <dd>
-            {% if doc.doc_phase %}
-            <span class="badge badge-phase">{{ PHASE_NAMES.get(doc.doc_phase, doc.doc_phase) }}</span>
-            {% else %}
-            -
-            {% endif %}
-        </dd>
-
-        <dt>File Path</dt>
-        <dd><code>{{ doc.doc_path }}</code></dd>
-
-        <dt>Created</dt>
-        <dd>{{ doc.created_at }}</dd>
-    </dl>
+    <h1>{{ doc.docname }}</h1>
 </div>
 
 {% if error %}
-<section class="section">
-    <h2>⚠️ Error</h2>
-    <div class="error-box">
-        <pre>{{ error }}</pre>
-    </div>
-</section>
+<div class="alert alert-error">{{ error }}</div>
 {% else %}
-<section class="section">
-    <h2>
-        <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
-        Document Content
-    </h2>
-    <div class="markdown-content">
-        {{ content|markdown }}
-    </div>
-</section>
+<div class="detail-card" style="padding: 1.5rem;">
+    {{ content | markdown }}
+</div>
 {% endif %}
 {% endblock %}

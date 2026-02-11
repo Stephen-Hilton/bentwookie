@@ -7,8 +7,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/table-sorter.css') }}">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/logocircle.png') }}">
+    {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <nav class="navbar">
         <div class="nav-brand">
             <img src="{{ url_for('static', filename='icons/logocircle.png') }}" alt="BentWookie">
@@ -16,33 +17,48 @@
         </div>
         <ul class="nav-links">
             <li>
-                <a href="{{ url_for('index') }}" {% if page == 'dashboard' %}class="active"{% endif %}>
-                    <img src="{{ url_for('static', filename='icons/ui_dashboard.png') }}" alt="" class="nav-icon">
-                    Dashboard
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('projects_list') }}" {% if page == 'projects' %}class="active"{% endif %}>
+                <a href="{{ url_for('workspace') }}" {% if page == 'workspace' %}class="active"{% endif %}>
                     <img src="{{ url_for('static', filename='icons/ui_viewproject.png') }}" alt="" class="nav-icon">
-                    Projects
+                    Workspace
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('requests_list') }}" {% if page == 'requests' %}class="active"{% endif %}>
-                    <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="" class="nav-icon">
-                    Requests
+                <a href="{{ url_for('agents_page') }}" {% if page == 'agents' %}class="active"{% endif %}>
+                    <img src="{{ url_for('static', filename='icons/ui_pipeline.png') }}" alt="" class="nav-icon">
+                    Agents
                 </a>
             </li>
             <li>
-                <a href="{{ url_for('status_page') }}" {% if page == 'status' %}class="active"{% endif %}>
+                <a href="{{ url_for('settings_page') }}" {% if page == 'settings' %}class="active"{% endif %}>
                     <img src="{{ url_for('static', filename='icons/ui_viewloop.png') }}" alt="" class="nav-icon">
-                    System
+                    Settings
                 </a>
+            </li>
+            <li>
+                <button class="nav-ea-chat-btn" id="ea-chat-toggle" title="EA Chat">EA</button>
             </li>
         </ul>
     </nav>
 
-    <main class="container">
+    <div class="agent-subheader">
+        {% set role_list = [
+            ('enterprise_architect', 'Enterprise Architect'),
+            ('business_architect', 'Business Architect'),
+            ('service_engineer', 'Service Engineer'),
+            ('coding_agent', 'Coding Agent'),
+            ('testing_agent', 'Testing Agent'),
+        ] %}
+        {% for role_key, role_label in role_list %}
+        <span class="agent-subheader-item-group">
+            <a href="{{ url_for('agents_page', role=role_key) }}" class="agent-subheader-item">
+                {{ role_label }} <span class="agent-subheader-count" id="subheader-count-{{ role_key }}">{{ agent_role_counts.get(role_key, 0) }}</span>
+            </a>
+            <button class="agent-subheader-spawn" onclick="spawnAgentFromSubheader('{{ role_key }}')" title="Spawn {{ role_label }}">+</button>
+        </span>
+        {% endfor %}
+    </div>
+
+    {% block container_start %}<main class="container">{% endblock %}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -51,110 +67,135 @@
             {% endif %}
         {% endwith %}
 
-        {% block content %}
-        {% if page == 'dashboard' %}
-        <div class="page-header">
-            <h1>
-                <img src="{{ url_for('static', filename='icons/ui_dashboard.png') }}" alt="">
-                Dashboard
-            </h1>
-            <div class="button-group">
-                <a href="{{ url_for('project_new') }}" class="btn btn-primary">
-                    <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
-                    New Project
-                </a>
-                <a href="{{ url_for('request_new') }}" class="btn btn-primary">
-                    <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
-                    New Request
-                </a>
-            </div>
+        {% block content %}{% endblock %}
+    {% block container_end %}</main>{% endblock %}
+
+    <!-- EA Chat Slideover Panel -->
+    <div class="ea-chat-panel" id="ea-chat-panel">
+        <div class="ea-chat-header">
+            <h3>Enterprise Architect</h3>
+            <button class="btn btn-sm" onclick="eaChat.close()">&times;</button>
         </div>
-
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3>Projects</h3>
-                <span class="stat-value">{{ stats.projects }}</span>
-            </div>
-            <div class="stat-card">
-                <h3>Requests</h3>
-                <span class="stat-value">{{ stats.requests }}</span>
-            </div>
-            <div class="stat-card">
-                <h3>Pending</h3>
-                <span class="stat-value">{{ stats.pending }}</span>
-            </div>
-            <div class="stat-card">
-                <h3>In Progress</h3>
-                <span class="stat-value">{{ stats.in_progress }}</span>
-            </div>
-            <div class="stat-card stat-success">
-                <h3>Done</h3>
-                <span class="stat-value">{{ stats.done }}</span>
-            </div>
-            <div class="stat-card stat-error">
-                <h3>Errors</h3>
-                <span class="stat-value">{{ stats.errors }}</span>
-            </div>
+        <div class="ea-chat-messages" id="ea-chat-messages"></div>
+        <div class="ea-chat-input">
+            <input type="text" id="ea-chat-input" placeholder="Ask the EA..." onkeydown="if(event.key==='Enter')eaChat.send()">
+            <button class="btn btn-primary btn-sm" onclick="eaChat.send()">Send</button>
         </div>
-
-        <section class="section">
-            <h2>
-                <img src="{{ url_for('static', filename='icons/ui_viewdetails.png') }}" alt="">
-                Recent Requests
-            </h2>
-            {% if recent_requests %}
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Project</th>
-                        <th>Name</th>
-                        <th>Phase</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in recent_requests %}
-                    <tr>
-                        <td><a href="{{ url_for('request_view', reqid=r.reqid) }}">{{ r.reqid }}</a></td>
-                        <td>{{ r.prjname }}</td>
-                        <td>{{ r.reqname }}</td>
-                        <td><span class="badge badge-phase">{{ PHASE_NAMES.get(r.reqphase, r.reqphase) }}</span></td>
-                        <td><span class="badge badge-{{ r.reqstatus }}">{{ STATUS_NAMES.get(r.reqstatus, r.reqstatus) }}</span></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p class="empty-state">No requests yet. <a href="{{ url_for('request_new') }}">Create one</a></p>
-            {% endif %}
-        </section>
-
-        <section class="section">
-            <h2>
-                <img src="{{ url_for('static', filename='icons/ui_pipeline.png') }}" alt="">
-                Quick Actions
-            </h2>
-            <div class="button-group">
-                <a href="{{ url_for('project_new') }}" class="btn btn-primary">
-                    <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
-                    New Project
-                </a>
-                <a href="{{ url_for('request_new') }}" class="btn btn-primary">
-                    <img src="{{ url_for('static', filename='icons/ui_editrequest.png') }}" alt="">
-                    New Request
-                </a>
-            </div>
-        </section>
-        {% endif %}
-        {% endblock %}
-    </main>
+    </div>
 
     <footer class="footer">
         <img src="{{ url_for('static', filename='icons/logocircle.png') }}" alt="BentWookie">
-        <p>BentWookie v0.2.0 - AI Coding Loop Workflow Manager</p>
+        <p>BentWookie v0.4.2 - AI Agent Swarm Orchestration</p>
     </footer>
 
     <script src="{{ url_for('static', filename='js/table-sorter.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sse-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ea-chat.js') }}"></script>
+    <script>
+    const eaChat = new EAChat();
+    document.getElementById('ea-chat-toggle').addEventListener('click', function() {
+        eaChat.toggle();
+    });
+
+    // Global: update all subheader count badges from the API
+    async function updateAllSubheaderCounts() {
+        try {
+            const resp = await fetch('/api/agents');
+            if (!resp.ok) return;
+            const agents = await resp.json();
+            const active = agents.filter(a => a.agtstatus !== 'terminated');
+            ['enterprise_architect', 'business_architect', 'service_engineer', 'coding_agent', 'testing_agent'].forEach(role => {
+                const el = document.getElementById('subheader-count-' + role);
+                if (el) el.textContent = active.filter(a => a.agtrole === role).length;
+            });
+        } catch (e) {
+            // Silently fail
+        }
+    }
+
+    // Keep subheader counts in sync via SSE (uses role_counts already in the event, no extra API call)
+    (function() {
+        const sse = typeof getSSE === 'function' ? getSSE() : null;
+        if (!sse) return;
+        sse.on('stats_update', function(data) {
+            if (data.role_counts) {
+                Object.entries(data.role_counts).forEach(([role, count]) => {
+                    const el = document.getElementById('subheader-count-' + role);
+                    if (el) el.textContent = count;
+                });
+            }
+        });
+    })();
+
+    // Poll subheader agent counts every 3 seconds as fallback
+    setInterval(updateAllSubheaderCounts, 3000);
+
+    // Resizable panel dividers
+    document.querySelectorAll('.panel-divider').forEach(function(divider) {
+        const leftSel = divider.dataset.left;
+        const rightSel = divider.dataset.right;
+        const leftPanel = document.querySelector(leftSel);
+        const rightPanel = document.querySelector(rightSel);
+        if (!leftPanel || !rightPanel) return;
+
+        let dragging = false;
+        let startX, startLeftWidth;
+
+        divider.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            dragging = true;
+            startX = e.clientX;
+            startLeftWidth = leftPanel.getBoundingClientRect().width;
+            divider.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!dragging) return;
+            const dx = e.clientX - startX;
+            const container = leftPanel.parentElement;
+            const containerWidth = container.getBoundingClientRect().width;
+            const dividerWidth = divider.getBoundingClientRect().width;
+            let newLeftWidth = startLeftWidth + dx;
+            // Clamp: min 150px, max container - 200px
+            newLeftWidth = Math.max(150, Math.min(newLeftWidth, containerWidth - dividerWidth - 200));
+            leftPanel.style.width = newLeftWidth + 'px';
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (!dragging) return;
+            dragging = false;
+            divider.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        });
+    });
+
+    async function spawnAgentFromSubheader(role) {
+        try {
+            const resp = await fetch('/api/agents/spawn', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role }),
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                // Fetch real counts from DB instead of optimistic +1
+                updateAllSubheaderCounts();
+                // If on agents page, refresh the agent tree
+                if (typeof agentMonitor !== 'undefined' && agentMonitor) {
+                    agentMonitor.refreshAgentTree();
+                }
+            } else {
+                alert(data.error || 'Failed to spawn agent');
+            }
+        } catch (e) {
+            console.error('Spawn error:', e);
+            alert('Failed to spawn agent');
+        }
+    }
+    </script>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

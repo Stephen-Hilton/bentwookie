@@ -1,1 +1,0 @@
-while :; do bw --next_prompt "loop name" --tasks "./bw/tasks" | claude --dangerously-skip-permissions ; done

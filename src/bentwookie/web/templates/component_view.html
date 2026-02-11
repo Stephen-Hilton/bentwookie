@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title_suffix %} - {{ component.cmpname }}{% endblock %}
+{% block content %}
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+    <a href="{{ url_for('projects_list') }}">Projects</a>
+    <span class="breadcrumb-separator">/</span>
+    {% for ancestor in ancestors %}
+        {% if ancestor.cmpid == component.cmpid %}
+            <span>{{ ancestor.cmpname }}</span>
+        {% else %}
+            <a href="{{ url_for('component_view', cmpid=ancestor.cmpid) }}">{{ ancestor.cmpname }}</a>
+            <span class="breadcrumb-separator">/</span>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<div class="page-header">
+    <h1>{{ component.cmpname }}</h1>
+    <span class="badge badge-lg badge-{{ component.cmpstatus }}">{{ COMPONENT_STATUS_NAMES.get(component.cmpstatus, component.cmpstatus) }}</span>
+</div>
+
+<div class="split-panel split-panel-60-40">
+    <!-- Left: Component details -->
+    <div>
+        <div class="detail-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+            <dl class="detail-list">
+                <dt>Level</dt>
+                <dd><span class="badge badge-info">{{ LEVEL_NAMES.get(component.cmplevel, component.cmplevel) }}</span></dd>
+                <dt>Status</dt>
+                <dd><span class="badge badge-{{ component.cmpstatus }}">{{ COMPONENT_STATUS_NAMES.get(component.cmpstatus, component.cmpstatus) }}</span></dd>
+                <dt>Description</dt>
+                <dd>{{ component.cmpdesc or 'N/A' }}</dd>
+            </dl>
+        </div>
+
+        {% if component.cmpspec %}
+        <section class="section">
+            <h2>Specification</h2>
+            <div class="prompt-box"><pre>{{ component.cmpspec }}</pre></div>
+        </section>
+        {% endif %}
+
+        {% if children %}
+        <section class="section">
+            <h2>Children</h2>
+            <table class="table table-sm">
+                <thead><tr><th>Name</th><th>Level</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for child in children %}
+                    <tr>
+                        <td><a href="{{ url_for('component_view', cmpid=child.cmpid) }}">{{ child.cmpname }}</a></td>
+                        <td><span class="badge badge-secondary">{{ child.cmplevel }}</span></td>
+                        <td><span class="badge badge-{{ child.cmpstatus }}">{{ child.cmpstatus }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+    </div>
+
+    <!-- Right: Test specs + connections -->
+    <div>
+        <section class="section">
+            <h2>Test Specs</h2>
+            {% if test_specs %}
+            <table class="table table-sm">
+                <thead><tr><th>Name</th><th>Type</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for ts in test_specs %}
+                    <tr>
+                        <td>{{ ts.tsname }}</td>
+                        <td>{{ ts.tstype }}</td>
+                        <td><span class="badge badge-{{ ts.tsstatus }}">{{ ts.tsstatus }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No test specs.</p>
+            {% endif %}
+        </section>
+
+        <section class="section">
+            <h2>Connections</h2>
+            {% if connections %}
+            <table class="table table-sm">
+                <thead><tr><th>From</th><th>To</th><th>Type</th></tr></thead>
+                <tbody>
+                    {% for c in connections %}
+                    <tr>
+                        <td>{{ c.from_name }}</td>
+                        <td>{{ c.to_name }}</td>
+                        <td>{{ c.contype }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No connections.</p>
+            {% endif %}
+        </section>
+
+        <section class="section">
+            <h2>Dependencies</h2>
+            {% if dependencies %}
+            <table class="table table-sm">
+                <thead><tr><th>Depends On</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for d in dependencies %}
+                    <tr>
+                        <td>{{ d.depends_on_name }}</td>
+                        <td><span class="badge badge-{{ d.depends_on_status }}">{{ d.depends_on_status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No dependencies.</p>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,2327 @@
+[
+  {
+    "key": "Unknown",
+    "owner": "",
+    "desc": "Unspecified or custom technology not in the catalog."
+  },
+  {
+    "key": "AI:Framework:LangChain",
+    "owner": "LangChain",
+    "desc": "Framework for building LLM-powered applications."
+  },
+  {
+    "key": "AI:Framework:LlamaIndex",
+    "owner": "LlamaIndex",
+    "desc": "Data framework for LLM applications (RAG)."
+  },
+  {
+    "key": "AI:LLM:Anthropic Claude",
+    "owner": "Anthropic",
+    "desc": "Large language model API and Claude Code CLI."
+  },
+  {
+    "key": "AI:LLM:Google Gemini",
+    "owner": "Google",
+    "desc": "Large language model API."
+  },
+  {
+    "key": "AI:LLM:Meta Llama",
+    "owner": "Meta",
+    "desc": "Open-weight large language model family."
+  },
+  {
+    "key": "AI:LLM:Mistral",
+    "owner": "Mistral AI",
+    "desc": "Open-weight and API-based language models."
+  },
+  {
+    "key": "AI:LLM:OpenAI GPT",
+    "owner": "OpenAI",
+    "desc": "Large language model API (GPT-4, etc.)."
+  },
+  {
+    "key": "AI:Runtime:Ollama",
+    "owner": "Ollama",
+    "desc": "Local LLM runner for open models."
+  },
+  {
+    "key": "AI:Runtime:vLLM",
+    "owner": "vLLM community",
+    "desc": "High-throughput LLM inference engine."
+  },
+  {
+    "key": "AWS:Analytics:Athena",
+    "owner": "Amazon Web Services",
+    "desc": "Serverless SQL query on S3 (Presto/Trino lineage)."
+  },
+  {
+    "key": "AWS:Analytics:Glue",
+    "owner": "Amazon Web Services",
+    "desc": "ETL and data catalog service."
+  },
+  {
+    "key": "AWS:Compute:EC2",
+    "owner": "Amazon Web Services",
+    "desc": "Virtual machines (compute instances)."
+  },
+  {
+    "key": "AWS:Compute:Lambda",
+    "owner": "Amazon Web Services",
+    "desc": "Serverless functions (event-driven compute)."
+  },
+  {
+    "key": "AWS:Containers:ECR",
+    "owner": "Amazon Web Services",
+    "desc": "Container registry."
+  },
+  {
+    "key": "AWS:Containers:ECS",
+    "owner": "Amazon Web Services",
+    "desc": "Managed container orchestration (AWS-native)."
+  },
+  {
+    "key": "AWS:Containers:EKS",
+    "owner": "Amazon Web Services",
+    "desc": "Managed Kubernetes service."
+  },
+  {
+    "key": "AWS:Containers:Fargate",
+    "owner": "Amazon Web Services",
+    "desc": "Serverless compute for containers (ECS/EKS)."
+  },
+  {
+    "key": "AWS:DataLake:S3",
+    "owner": "Amazon Web Services",
+    "desc": "Object storage for data lakes and applications."
+  },
+  {
+    "key": "AWS:Database:Aurora (MySQL/PostgreSQL)",
+    "owner": "Amazon Web Services",
+    "desc": "Cloud-optimized relational DB compatible with MySQL/PostgreSQL."
+  },
+  {
+    "key": "AWS:Database:DynamoDB",
+    "owner": "Amazon Web Services",
+    "desc": "Managed NoSQL key-value/document database."
+  },
+  {
+    "key": "AWS:Database:ElastiCache for Memcached",
+    "owner": "Amazon Web Services",
+    "desc": "Managed Memcached caching service."
+  },
+  {
+    "key": "AWS:Database:ElastiCache for Redis",
+    "owner": "Amazon Web Services",
+    "desc": "Managed in-memory data store (Redis/Valkey variants may apply)."
+  },
+  {
+    "key": "AWS:Database:RDS for MariaDB",
+    "owner": "Amazon Web Services",
+    "desc": "Managed MariaDB database (RDS)."
+  },
+  {
+    "key": "AWS:Database:RDS for MySQL",
+    "owner": "Amazon Web Services",
+    "desc": "Managed MySQL database (RDS)."
+  },
+  {
+    "key": "AWS:Database:RDS for PostgreSQL",
+    "owner": "Amazon Web Services",
+    "desc": "Managed PostgreSQL database (RDS)."
+  },
+  {
+    "key": "AWS:Integration:EventBridge",
+    "owner": "Amazon Web Services",
+    "desc": "Event bus for routing events between services/apps."
+  },
+  {
+    "key": "AWS:Integration:Step Functions",
+    "owner": "Amazon Web Services",
+    "desc": "Serverless workflow orchestration (state machines)."
+  },
+  {
+    "key": "AWS:LoadBalancing:ALB/NLB",
+    "owner": "Amazon Web Services",
+    "desc": "Layer 7/4 load balancing for apps and services."
+  },
+  {
+    "key": "AWS:ML:SageMaker",
+    "owner": "Amazon Web Services",
+    "desc": "Managed ML training, deployment, and MLOps platform."
+  },
+  {
+    "key": "AWS:Networking:CloudFront",
+    "owner": "Amazon Web Services",
+    "desc": "CDN and edge caching."
+  },
+  {
+    "key": "AWS:Networking:VPC",
+    "owner": "Amazon Web Services",
+    "desc": "Virtual network isolation and routing."
+  },
+  {
+    "key": "AWS:Observability:CloudWatch",
+    "owner": "Amazon Web Services",
+    "desc": "Metrics, logs, alarms, and events."
+  },
+  {
+    "key": "AWS:Observability:X-Ray",
+    "owner": "Amazon Web Services",
+    "desc": "Distributed tracing and service map."
+  },
+  {
+    "key": "AWS:Queuing:Amazon MQ",
+    "owner": "Amazon Web Services",
+    "desc": "Managed message broker for ActiveMQ and RabbitMQ."
+  },
+  {
+    "key": "AWS:Queuing:SQS",
+    "owner": "Amazon Web Services",
+    "desc": "Managed message queue (standard/FIFO)."
+  },
+  {
+    "key": "AWS:Routing:Route 53",
+    "owner": "Amazon Web Services",
+    "desc": "DNS service + domain registration + routing policies."
+  },
+  {
+    "key": "AWS:Search:OpenSearch Ingestion",
+    "owner": "Amazon Web Services",
+    "desc": "Managed ingestion pipelines to OpenSearch."
+  },
+  {
+    "key": "AWS:Search:OpenSearch Service",
+    "owner": "Amazon Web Services",
+    "desc": "Managed OpenSearch for search/log analytics."
+  },
+  {
+    "key": "AWS:Security:IAM",
+    "owner": "Amazon Web Services",
+    "desc": "Identity and access management for AWS."
+  },
+  {
+    "key": "AWS:Security:KMS",
+    "owner": "Amazon Web Services",
+    "desc": "Managed key management and encryption primitives."
+  },
+  {
+    "key": "AWS:Security:Secrets Manager",
+    "owner": "Amazon Web Services",
+    "desc": "Managed secrets storage and rotation."
+  },
+  {
+    "key": "AWS:Streaming:Kinesis Data Streams",
+    "owner": "Amazon Web Services",
+    "desc": "Managed streaming data service (shard-based)."
+  },
+  {
+    "key": "AWS:Streaming:Kinesis Firehose",
+    "owner": "Amazon Web Services",
+    "desc": "Managed delivery stream to S3/Redshift/OpenSearch/3rd-party."
+  },
+  {
+    "key": "AWS:Streaming:MSK (Managed Streaming for Apache Kafka)",
+    "owner": "Amazon Web Services",
+    "desc": "Managed Apache Kafka clusters."
+  },
+  {
+    "key": "AWS:Warehouse:Redshift",
+    "owner": "Amazon Web Services",
+    "desc": "Managed data warehouse."
+  },
+  {
+    "key": "Azure:Analytics:Synapse Analytics",
+    "owner": "Microsoft Azure",
+    "desc": "Analytics service combining DW + big data capabilities."
+  },
+  {
+    "key": "Azure:Cache:Azure Cache for Redis",
+    "owner": "Microsoft Azure",
+    "desc": "Managed Redis caching."
+  },
+  {
+    "key": "Azure:Compute:Azure Functions",
+    "owner": "Microsoft Azure",
+    "desc": "Serverless functions."
+  },
+  {
+    "key": "Azure:Compute:Virtual Machines",
+    "owner": "Microsoft Azure",
+    "desc": "Virtual machines."
+  },
+  {
+    "key": "Azure:Containers:AKS",
+    "owner": "Microsoft Azure",
+    "desc": "Managed Kubernetes service."
+  },
+  {
+    "key": "Azure:Containers:Azure Container Registry",
+    "owner": "Microsoft Azure",
+    "desc": "Container registry."
+  },
+  {
+    "key": "Azure:Data:Data Factory",
+    "owner": "Microsoft Azure",
+    "desc": "ETL/ELT and data integration."
+  },
+  {
+    "key": "Azure:Database:Azure Database for MySQL",
+    "owner": "Microsoft Azure",
+    "desc": "Managed MySQL database service."
+  },
+  {
+    "key": "Azure:Database:Azure Database for PostgreSQL",
+    "owner": "Microsoft Azure",
+    "desc": "Managed PostgreSQL database service."
+  },
+  {
+    "key": "Azure:Database:Azure SQL Database",
+    "owner": "Microsoft Azure",
+    "desc": "Managed SQL Server-compatible relational database."
+  },
+  {
+    "key": "Azure:Database:Cosmos DB",
+    "owner": "Microsoft Azure",
+    "desc": "Globally distributed NoSQL database (multi-model)."
+  },
+  {
+    "key": "Azure:Integration:Event Grid",
+    "owner": "Microsoft Azure",
+    "desc": "Event routing service."
+  },
+  {
+    "key": "Azure:Messaging:Service Bus",
+    "owner": "Microsoft Azure",
+    "desc": "Enterprise messaging (queues/topics)."
+  },
+  {
+    "key": "Azure:Networking:Azure DNS",
+    "owner": "Microsoft Azure",
+    "desc": "Managed DNS service."
+  },
+  {
+    "key": "Azure:Networking:Azure Front Door",
+    "owner": "Microsoft Azure",
+    "desc": "Global edge routing/CDN and application acceleration."
+  },
+  {
+    "key": "Azure:Observability:Azure Monitor",
+    "owner": "Microsoft Azure",
+    "desc": "Metrics, logs, and monitoring platform."
+  },
+  {
+    "key": "Azure:Security:Entra ID (Azure AD)",
+    "owner": "Microsoft Azure",
+    "desc": "Identity and access management (directory)."
+  },
+  {
+    "key": "Azure:Security:Key Vault",
+    "owner": "Microsoft Azure",
+    "desc": "Secrets and key management."
+  },
+  {
+    "key": "Azure:Streaming:Event Hubs",
+    "owner": "Microsoft Azure",
+    "desc": "Big data streaming platform and event ingestion."
+  },
+  {
+    "key": "Cloud:Auth:Auth0",
+    "owner": "Okta",
+    "desc": "Identity platform (authentication/authorization as a service)."
+  },
+  {
+    "key": "Cloud:Auth:Clerk",
+    "owner": "Clerk",
+    "desc": "Authentication and user management for apps."
+  },
+  {
+    "key": "Cloud:Auth:WorkOS",
+    "owner": "WorkOS",
+    "desc": "Enterprise auth (SSO, SCIM, directory sync)."
+  },
+  {
+    "key": "Cloud:BaaS:Appwrite",
+    "owner": "Appwrite",
+    "desc": "Open-source backend server for web/mobile apps."
+  },
+  {
+    "key": "Cloud:BaaS:Firebase",
+    "owner": "Google",
+    "desc": "Backend-as-a-Service (auth, database, hosting, functions)."
+  },
+  {
+    "key": "Cloud:BaaS:PocketBase",
+    "owner": "PocketBase",
+    "desc": "Open-source backend in a single binary (Go + SQLite)."
+  },
+  {
+    "key": "Cloud:BaaS:Supabase",
+    "owner": "Supabase",
+    "desc": "Open-source Firebase alternative (PostgreSQL-based)."
+  },
+  {
+    "key": "Cloud:CI:CircleCI",
+    "owner": "CircleCI",
+    "desc": "Continuous integration and delivery platform."
+  },
+  {
+    "key": "Cloud:CI:GitHub Actions",
+    "owner": "Microsoft",
+    "desc": "CI/CD workflows integrated with GitHub."
+  },
+  {
+    "key": "Cloud:CI:Travis CI",
+    "owner": "Travis CI",
+    "desc": "Hosted CI service for open-source projects."
+  },
+  {
+    "key": "Cloud:Communication:Resend",
+    "owner": "Resend",
+    "desc": "Developer-first email API."
+  },
+  {
+    "key": "Cloud:Communication:SendGrid",
+    "owner": "Twilio",
+    "desc": "Email delivery and marketing platform."
+  },
+  {
+    "key": "Cloud:Communication:Twilio",
+    "owner": "Twilio",
+    "desc": "Cloud communications (SMS, voice, video APIs)."
+  },
+  {
+    "key": "Cloud:Database:Neon",
+    "owner": "Neon",
+    "desc": "Serverless PostgreSQL with branching."
+  },
+  {
+    "key": "Cloud:Database:PlanetScale",
+    "owner": "PlanetScale",
+    "desc": "Serverless MySQL platform (Vitess-based)."
+  },
+  {
+    "key": "Cloud:ManagedOSS:Aiven for Apache Flink",
+    "owner": "Aiven",
+    "desc": "Managed Flink (multi-cloud)."
+  },
+  {
+    "key": "Cloud:ManagedOSS:Aiven for Apache Kafka",
+    "owner": "Aiven",
+    "desc": "Managed Kafka (multi-cloud)."
+  },
+  {
+    "key": "Cloud:ManagedOSS:Aiven for OpenSearch",
+    "owner": "Aiven",
+    "desc": "Managed OpenSearch (multi-cloud)."
+  },
+  {
+    "key": "Cloud:ManagedOSS:Aiven for PostgreSQL",
+    "owner": "Aiven",
+    "desc": "Managed PostgreSQL (multi-cloud)."
+  },
+  {
+    "key": "Cloud:ManagedOSS:Confluent Cloud (Kafka)",
+    "owner": "Confluent",
+    "desc": "Managed Kafka with connectors/ksqlDB (multi-cloud)."
+  },
+  {
+    "key": "Cloud:ManagedOSS:Datastax Astra DB (Cassandra)",
+    "owner": "DataStax",
+    "desc": "Managed Cassandra/DBaaS (multi-cloud)."
+  },
+  {
+    "key": "Cloud:ManagedOSS:Elastic Cloud",
+    "owner": "Elastic",
+    "desc": "Managed Elasticsearch/Kibana (multi-cloud)."
+  },
+  {
+    "key": "Cloud:ManagedOSS:MongoDB Atlas",
+    "owner": "MongoDB, Inc.",
+    "desc": "Managed MongoDB (multi-cloud)."
+  },
+  {
+    "key": "Cloud:Monitoring:Datadog",
+    "owner": "Datadog",
+    "desc": "Cloud monitoring, APM, and log management platform."
+  },
+  {
+    "key": "Cloud:Monitoring:New Relic",
+    "owner": "New Relic",
+    "desc": "Full-stack observability platform."
+  },
+  {
+    "key": "Cloud:Monitoring:PagerDuty",
+    "owner": "PagerDuty",
+    "desc": "Incident management and alerting platform."
+  },
+  {
+    "key": "Cloud:Monitoring:Sentry",
+    "owner": "Sentry",
+    "desc": "Error tracking and performance monitoring."
+  },
+  {
+    "key": "Cloud:PaaS:Fly.io",
+    "owner": "Fly.io",
+    "desc": "App deployment platform (edge compute)."
+  },
+  {
+    "key": "Cloud:PaaS:Heroku",
+    "owner": "Salesforce",
+    "desc": "Cloud application platform."
+  },
+  {
+    "key": "Cloud:PaaS:Netlify",
+    "owner": "Netlify",
+    "desc": "Web deployment and serverless platform."
+  },
+  {
+    "key": "Cloud:PaaS:Railway",
+    "owner": "Railway",
+    "desc": "App deployment platform."
+  },
+  {
+    "key": "Cloud:PaaS:Render",
+    "owner": "Render",
+    "desc": "Cloud application platform."
+  },
+  {
+    "key": "Cloud:PaaS:Vercel",
+    "owner": "Vercel",
+    "desc": "Frontend deployment and serverless functions platform."
+  },
+  {
+    "key": "Cloud:Payments:PayPal",
+    "owner": "PayPal",
+    "desc": "Online payment platform."
+  },
+  {
+    "key": "Cloud:Payments:Stripe",
+    "owner": "Stripe",
+    "desc": "Payment processing and financial infrastructure."
+  },
+  {
+    "key": "Cloud:SCM:Bitbucket",
+    "owner": "Atlassian",
+    "desc": "Git hosting and CI/CD."
+  },
+  {
+    "key": "Cloud:SCM:GitHub",
+    "owner": "Microsoft",
+    "desc": "Git hosting, CI/CD, and developer platform."
+  },
+  {
+    "key": "Cloud:SCM:GitLab SaaS",
+    "owner": "GitLab",
+    "desc": "DevOps platform (hosted)."
+  },
+  {
+    "key": "GCP:Analytics:BigQuery",
+    "owner": "Google Cloud",
+    "desc": "Serverless data warehouse and analytics engine."
+  },
+  {
+    "key": "GCP:Compute:Cloud Functions",
+    "owner": "Google Cloud",
+    "desc": "Serverless functions."
+  },
+  {
+    "key": "GCP:Compute:Compute Engine",
+    "owner": "Google Cloud",
+    "desc": "Virtual machines."
+  },
+  {
+    "key": "GCP:Containers:Artifact Registry",
+    "owner": "Google Cloud",
+    "desc": "Artifact/container registry."
+  },
+  {
+    "key": "GCP:Containers:GKE",
+    "owner": "Google Cloud",
+    "desc": "Managed Kubernetes service."
+  },
+  {
+    "key": "GCP:Database:AlloyDB for PostgreSQL",
+    "owner": "Google Cloud",
+    "desc": "PostgreSQL-compatible managed database for high performance."
+  },
+  {
+    "key": "GCP:Database:Bigtable",
+    "owner": "Google Cloud",
+    "desc": "Managed wide-column NoSQL database."
+  },
+  {
+    "key": "GCP:Database:Cloud SQL for MySQL",
+    "owner": "Google Cloud",
+    "desc": "Managed MySQL database."
+  },
+  {
+    "key": "GCP:Database:Cloud SQL for PostgreSQL",
+    "owner": "Google Cloud",
+    "desc": "Managed PostgreSQL database."
+  },
+  {
+    "key": "GCP:Database:Cloud Spanner",
+    "owner": "Google Cloud",
+    "desc": "Globally-distributed relational database (strong consistency)."
+  },
+  {
+    "key": "GCP:Database:Memorystore for Redis",
+    "owner": "Google Cloud",
+    "desc": "Managed in-memory store (Redis/Valkey variants may apply)."
+  },
+  {
+    "key": "GCP:Networking:Cloud DNS",
+    "owner": "Google Cloud",
+    "desc": "Managed DNS service."
+  },
+  {
+    "key": "GCP:Networking:Cloud Load Balancing",
+    "owner": "Google Cloud",
+    "desc": "Global load balancing for HTTP(S)/TCP/UDP."
+  },
+  {
+    "key": "GCP:Observability:Cloud Logging",
+    "owner": "Google Cloud",
+    "desc": "Central log management."
+  },
+  {
+    "key": "GCP:Observability:Cloud Monitoring",
+    "owner": "Google Cloud",
+    "desc": "Metrics and alerting (formerly Stackdriver)."
+  },
+  {
+    "key": "GCP:Routing:Cloud CDN",
+    "owner": "Google Cloud",
+    "desc": "Content delivery network."
+  },
+  {
+    "key": "GCP:Security:IAM",
+    "owner": "Google Cloud",
+    "desc": "Identity and access management."
+  },
+  {
+    "key": "GCP:Security:KMS",
+    "owner": "Google Cloud",
+    "desc": "Key management service."
+  },
+  {
+    "key": "GCP:Streaming:Dataflow",
+    "owner": "Google Cloud",
+    "desc": "Managed Apache Beam runner for batch/stream processing."
+  },
+  {
+    "key": "GCP:Streaming:Pub/Sub",
+    "owner": "Google Cloud",
+    "desc": "Global messaging and event ingestion service."
+  },
+  {
+    "key": "OSS:API:GraphQL",
+    "owner": "GraphQL Foundation",
+    "desc": "Query language/runtime for APIs."
+  },
+  {
+    "key": "OSS:API:Kubernetes API Server",
+    "owner": "CNCF (Kubernetes)",
+    "desc": "Control plane API surface for Kubernetes."
+  },
+  {
+    "key": "OSS:API:OpenAPI",
+    "owner": "OpenAPI Initiative",
+    "desc": "Specification for REST APIs (Swagger)."
+  },
+  {
+    "key": "OSS:APIGateway:Apache APISIX",
+    "owner": "Apache Software Foundation",
+    "desc": "Cloud-native API gateway (Nginx/OpenResty based) with plugins."
+  },
+  {
+    "key": "OSS:APIGateway:Envoy Gateway",
+    "owner": "CNCF / Envoy community",
+    "desc": "Gateway built on Envoy for Kubernetes Gateway API."
+  },
+  {
+    "key": "OSS:APIGateway:Gravitee",
+    "owner": "Gravitee.io",
+    "desc": "API management + gateway (OSS + enterprise)."
+  },
+  {
+    "key": "OSS:APIGateway:Kong Gateway",
+    "owner": "Kong, Inc.",
+    "desc": "API gateway for routing, auth, rate limiting, plugins. Also offers Konnect (SaaS)."
+  },
+  {
+    "key": "OSS:APIGateway:KrakenD",
+    "owner": "KrakenD community",
+    "desc": "High-performance API gateway/aggregator."
+  },
+  {
+    "key": "OSS:APIGateway:Tyk",
+    "owner": "Tyk Technologies",
+    "desc": "API gateway and management (OSS + enterprise)."
+  },
+  {
+    "key": "OSS:APIGateway:WSO2 API Manager",
+    "owner": "WSO2",
+    "desc": "API management suite (OSS core + enterprise options)."
+  },
+  {
+    "key": "OSS:APM:Pinpoint",
+    "owner": "Naver",
+    "desc": "APM for large-scale distributed systems (Java)."
+  },
+  {
+    "key": "OSS:APM:SkyWalking",
+    "owner": "Apache Software Foundation",
+    "desc": "Application performance monitoring and observability."
+  },
+  {
+    "key": "OSS:ArtifactRepo:JFrog Artifactory OSS",
+    "owner": "JFrog",
+    "desc": "Artifact repository manager. Open-source variants exist; enterprise common."
+  },
+  {
+    "key": "OSS:ArtifactRepo:Nexus Repository OSS",
+    "owner": "Sonatype",
+    "desc": "Artifact repository manager (Maven, npm, etc.)."
+  },
+  {
+    "key": "OSS:AuthN:OIDC",
+    "owner": "OpenID Foundation",
+    "desc": "Identity layer on top of OAuth2. Standard, not software."
+  },
+  {
+    "key": "OSS:AuthN:SAML",
+    "owner": "OASIS",
+    "desc": "Federation protocol for SSO. Standard, not software."
+  },
+  {
+    "key": "OSS:AuthN:oauth2-proxy",
+    "owner": "oauth2-proxy community",
+    "desc": "Reverse proxy that provides authentication with OAuth2/OIDC."
+  },
+  {
+    "key": "OSS:AuthZ:Cedar (policy language)",
+    "owner": "Amazon Web Services",
+    "desc": "Policy language for authorization (open spec/impls). Verify current OSS status before adopting."
+  },
+  {
+    "key": "OSS:Autoscaling:Cluster Autoscaler",
+    "owner": "Kubernetes SIGs",
+    "desc": "Autoscale Kubernetes cluster nodes."
+  },
+  {
+    "key": "OSS:BI:Apache Superset",
+    "owner": "Apache Software Foundation",
+    "desc": "BI exploration and dashboarding."
+  },
+  {
+    "key": "OSS:BI:Metabase",
+    "owner": "Metabase",
+    "desc": "Open-source BI and analytics."
+  },
+  {
+    "key": "OSS:BI:Redash",
+    "owner": "Redash community",
+    "desc": "Data visualization and dashboarding."
+  },
+  {
+    "key": "OSS:Backend:ASP.NET Core",
+    "owner": "Microsoft",
+    "desc": "Web framework for .NET."
+  },
+  {
+    "key": "OSS:Backend:Actix Web",
+    "owner": "Actix community",
+    "desc": "High-performance Rust web framework."
+  },
+  {
+    "key": "OSS:Backend:Django",
+    "owner": "Django Software Foundation",
+    "desc": "Python web framework (batteries included)."
+  },
+  {
+    "key": "OSS:Backend:Dropwizard",
+    "owner": "Dropwizard community",
+    "desc": "Java REST framework."
+  },
+  {
+    "key": "OSS:Backend:Express",
+    "owner": "OpenJS community",
+    "desc": "Node.js web framework."
+  },
+  {
+    "key": "OSS:Backend:FastAPI",
+    "owner": "FastAPI community",
+    "desc": "High-performance Python API framework (ASGI)."
+  },
+  {
+    "key": "OSS:Backend:Flask",
+    "owner": "Pallets Projects",
+    "desc": "Lightweight Python web framework."
+  },
+  {
+    "key": "OSS:Backend:Gin",
+    "owner": "Gin community",
+    "desc": "HTTP web framework for Go."
+  },
+  {
+    "key": "OSS:Backend:Hono",
+    "owner": "Hono community",
+    "desc": "Lightweight web framework for edge runtimes."
+  },
+  {
+    "key": "OSS:Backend:Laravel",
+    "owner": "Laravel community",
+    "desc": "PHP web framework."
+  },
+  {
+    "key": "OSS:Backend:Micronaut",
+    "owner": "Micronaut Foundation / community",
+    "desc": "JVM framework for microservices (AOT)."
+  },
+  {
+    "key": "OSS:Backend:Nest.js",
+    "owner": "NestJS community",
+    "desc": "Progressive Node.js framework (TypeScript)."
+  },
+  {
+    "key": "OSS:Backend:Phoenix",
+    "owner": "Phoenix community",
+    "desc": "Elixir web framework (real-time, fault-tolerant)."
+  },
+  {
+    "key": "OSS:Backend:Quarkus",
+    "owner": "Red Hat",
+    "desc": "Java framework optimized for containers/Kubernetes."
+  },
+  {
+    "key": "OSS:Backend:Ruby on Rails",
+    "owner": "Rails community",
+    "desc": "Ruby web framework."
+  },
+  {
+    "key": "OSS:Backend:Spring Boot",
+    "owner": "VMware (Spring) / community",
+    "desc": "Java framework for building microservices and web apps."
+  },
+  {
+    "key": "OSS:Backend:gRPC",
+    "owner": "CNCF / community",
+    "desc": "High-performance RPC framework over HTTP/2 with protobuf."
+  },
+  {
+    "key": "OSS:Build:Bazel",
+    "owner": "Bazel community (Google origin)",
+    "desc": "Build/test tool for large mono-repos."
+  },
+  {
+    "key": "OSS:Build:Gradle",
+    "owner": "Gradle, Inc.",
+    "desc": "Build automation system for JVM and more."
+  },
+  {
+    "key": "OSS:Build:Maven",
+    "owner": "Apache Software Foundation",
+    "desc": "Build automation and dependency management for Java."
+  },
+  {
+    "key": "OSS:Bundler:Rollup",
+    "owner": "Rollup community",
+    "desc": "JavaScript module bundler (ES modules)."
+  },
+  {
+    "key": "OSS:Bundler:Turbopack",
+    "owner": "Vercel",
+    "desc": "Incremental bundler for JavaScript/TypeScript."
+  },
+  {
+    "key": "OSS:Bundler:Vite",
+    "owner": "Vite community",
+    "desc": "Fast frontend build tool."
+  },
+  {
+    "key": "OSS:Bundler:Webpack",
+    "owner": "Webpack community",
+    "desc": "JavaScript module bundler."
+  },
+  {
+    "key": "OSS:Bundler:esbuild",
+    "owner": "esbuild community",
+    "desc": "Extremely fast JavaScript/TypeScript bundler."
+  },
+  {
+    "key": "OSS:CDN:Varnish Cache",
+    "owner": "Varnish Software",
+    "desc": "HTTP accelerator and caching."
+  },
+  {
+    "key": "OSS:CI:Argo CD (as CD)",
+    "owner": "CNCF (Argo)",
+    "desc": "GitOps continuous delivery for Kubernetes."
+  },
+  {
+    "key": "OSS:CI:Jenkins",
+    "owner": "Jenkins community",
+    "desc": "Automation server for CI/CD pipelines."
+  },
+  {
+    "key": "OSS:CI:Spinnaker",
+    "owner": "Spinnaker community",
+    "desc": "Multi-cloud continuous delivery platform."
+  },
+  {
+    "key": "OSS:CI:Tekton",
+    "owner": "CNCF (Tekton)",
+    "desc": "Kubernetes-native CI/CD framework."
+  },
+  {
+    "key": "OSS:CSS:Bootstrap",
+    "owner": "Bootstrap community",
+    "desc": "UI component/CSS framework."
+  },
+  {
+    "key": "OSS:CSS:Tailwind CSS",
+    "owner": "Tailwind Labs",
+    "desc": "Utility-first CSS framework."
+  },
+  {
+    "key": "OSS:Cache:Varnish",
+    "owner": "Varnish Software",
+    "desc": "HTTP caching reverse proxy."
+  },
+  {
+    "key": "OSS:Chaos:Chaos Mesh",
+    "owner": "Chaos Mesh community",
+    "desc": "Chaos engineering platform for Kubernetes."
+  },
+  {
+    "key": "OSS:Chaos:LitmusChaos",
+    "owner": "CNCF (LitmusChaos)",
+    "desc": "Chaos engineering for Kubernetes."
+  },
+  {
+    "key": "OSS:Charts:Apache ECharts",
+    "owner": "Apache Software Foundation",
+    "desc": "Charting library."
+  },
+  {
+    "key": "OSS:Charts:D3.js",
+    "owner": "D3 community",
+    "desc": "Visualization library for web."
+  },
+  {
+    "key": "OSS:Compute:FreeBSD",
+    "owner": "FreeBSD Project",
+    "desc": "Unix-like operating system (notably used in networking/storage)."
+  },
+  {
+    "key": "OSS:Compute:Linux",
+    "owner": "Linux Foundation (kernel community)",
+    "desc": "Open-source operating system kernel used across servers, containers, embedded. Distros: Ubuntu (Canonical), Debian, RHEL (Red Hat), AL2023 (AWS), etc."
+  },
+  {
+    "key": "OSS:Compute:Local",
+    "owner": "Local Client Compute",
+    "desc": "Any local machine used for development/testing."
+  },
+  {
+    "key": "OSS:Config:Ansible",
+    "owner": "Red Hat",
+    "desc": "Configuration management and automation."
+  },
+  {
+    "key": "OSS:Config:Chef",
+    "owner": "Progress Software / community",
+    "desc": "Configuration management tool."
+  },
+  {
+    "key": "OSS:Config:Guix",
+    "owner": "GNU Project",
+    "desc": "Functional package manager (Nix-like)."
+  },
+  {
+    "key": "OSS:Config:Nix",
+    "owner": "Nix community",
+    "desc": "Declarative package manager and build system."
+  },
+  {
+    "key": "OSS:Config:Puppet",
+    "owner": "Perforce / community",
+    "desc": "Configuration management tool."
+  },
+  {
+    "key": "OSS:Config:SaltStack",
+    "owner": "VMware / community",
+    "desc": "Configuration management and remote execution."
+  },
+  {
+    "key": "OSS:ContainerRegistry:Harbor",
+    "owner": "CNCF (Harbor)",
+    "desc": "Container image registry with security/scanning features."
+  },
+  {
+    "key": "OSS:Containers:BuildKit",
+    "owner": "Docker/Moby community",
+    "desc": "Modern container image builder backend (fast, cache-efficient)."
+  },
+  {
+    "key": "OSS:Containers:CRI-O",
+    "owner": "Kubernetes community",
+    "desc": "Kubernetes-focused container runtime implementing CRI."
+  },
+  {
+    "key": "OSS:Containers:Docker Engine",
+    "owner": "Docker, Inc. (open-source components)",
+    "desc": "Container build/run tooling and runtime components. Often paired with containerd; Docker Desktop is proprietary."
+  },
+  {
+    "key": "OSS:Containers:Podman",
+    "owner": "Red Hat",
+    "desc": "Daemonless container engine compatible with OCI containers."
+  },
+  {
+    "key": "OSS:Containers:containerd",
+    "owner": "CNCF (containerd)",
+    "desc": "Container runtime powering Kubernetes and many container platforms."
+  },
+  {
+    "key": "OSS:Coordination:Raft",
+    "owner": "(algorithm)",
+    "desc": "Consensus algorithm used in etcd/Consul. Not a platform; included for completeness."
+  },
+  {
+    "key": "OSS:DBAdmin:Adminer",
+    "owner": "Adminer community",
+    "desc": "Lightweight DB management tool."
+  },
+  {
+    "key": "OSS:DBAdmin:pgAdmin",
+    "owner": "pgAdmin community",
+    "desc": "PostgreSQL administration UI."
+  },
+  {
+    "key": "OSS:DBMigration:Flyway",
+    "owner": "Redgate (Flyway)",
+    "desc": "Database migration/versioning tool. Community edition exists."
+  },
+  {
+    "key": "OSS:DBMigration:Liquibase",
+    "owner": "Liquibase",
+    "desc": "Database schema change management. OSS core + enterprise."
+  },
+  {
+    "key": "OSS:DNS:CoreDNS",
+    "owner": "CNCF (CoreDNS)",
+    "desc": "DNS server commonly used in Kubernetes clusters."
+  },
+  {
+    "key": "OSS:DataCatalog:Amundsen",
+    "owner": "Lyft / community",
+    "desc": "Data discovery and metadata engine."
+  },
+  {
+    "key": "OSS:DataCatalog:DataHub",
+    "owner": "Acryl Data / community",
+    "desc": "Metadata platform and data catalog. OSS core."
+  },
+  {
+    "key": "OSS:DataCatalog:OpenMetadata",
+    "owner": "OpenMetadata community",
+    "desc": "Open-source metadata and governance platform."
+  },
+  {
+    "key": "OSS:DataLake:Apache Hudi",
+    "owner": "Apache Software Foundation",
+    "desc": "Data lake platform with incremental processing and ACID-ish semantics."
+  },
+  {
+    "key": "OSS:DataLake:Apache Iceberg",
+    "owner": "Apache Software Foundation",
+    "desc": "Table format for huge analytic datasets in data lakes."
+  },
+  {
+    "key": "OSS:DataLake:Delta Lake",
+    "owner": "LF AI & Data (Delta Lake)",
+    "desc": "Lakehouse table format with ACID transactions. Databricks origin."
+  },
+  {
+    "key": "OSS:DataLakehouse:DuckDB",
+    "owner": "DuckDB Foundation / community",
+    "desc": "In-process analytical database for local analytics."
+  },
+  {
+    "key": "OSS:DataVersioning:DVC",
+    "owner": "Iterative.ai",
+    "desc": "Data version control for ML datasets/models."
+  },
+  {
+    "key": "OSS:Database:Apache Cassandra",
+    "owner": "Apache Software Foundation",
+    "desc": "Distributed wide-column NoSQL database (high availability)."
+  },
+  {
+    "key": "OSS:Database:Apache Druid",
+    "owner": "Apache Software Foundation",
+    "desc": "Real-time analytics database for high ingest + OLAP."
+  },
+  {
+    "key": "OSS:Database:Apache HBase",
+    "owner": "Apache Software Foundation",
+    "desc": "Distributed wide-column store built on Hadoop/HDFS."
+  },
+  {
+    "key": "OSS:Database:Apache Hive",
+    "owner": "Apache Software Foundation",
+    "desc": "SQL-like query system for Hadoop data warehouses."
+  },
+  {
+    "key": "OSS:Database:Apache Pinot",
+    "owner": "Apache Software Foundation",
+    "desc": "Real-time distributed OLAP datastore for low-latency queries."
+  },
+  {
+    "key": "OSS:Database:ClickHouse",
+    "owner": "ClickHouse, Inc. / community",
+    "desc": "Columnar OLAP database for analytics (fast aggregation)."
+  },
+  {
+    "key": "OSS:Database:CockroachDB",
+    "owner": "Cockroach Labs",
+    "desc": "Distributed SQL database with PostgreSQL wire compatibility. Core is source-available; check license terms."
+  },
+  {
+    "key": "OSS:Database:CouchDB",
+    "owner": "Apache Software Foundation",
+    "desc": "Document database with replication and HTTP API."
+  },
+  {
+    "key": "OSS:Database:Elasticsearch",
+    "owner": "Elastic",
+    "desc": "Search + analytics engine (source-available), often used for logs/search. OpenSearch is the Apache 2.0 fork."
+  },
+  {
+    "key": "OSS:Database:FerretDB",
+    "owner": "FerretDB",
+    "desc": "MongoDB-compatible database on PostgreSQL."
+  },
+  {
+    "key": "OSS:Database:Greenplum",
+    "owner": "VMware Tanzu / community",
+    "desc": "MPP data warehouse based on PostgreSQL."
+  },
+  {
+    "key": "OSS:Database:InfluxDB",
+    "owner": "InfluxData",
+    "desc": "Time series database for metrics and events. Open-source core; enterprise/cloud offerings exist."
+  },
+  {
+    "key": "OSS:Database:JanusGraph",
+    "owner": "JanusGraph community",
+    "desc": "Distributed graph database (storage backends like Cassandra/HBase)."
+  },
+  {
+    "key": "OSS:Database:MariaDB",
+    "owner": "MariaDB Foundation",
+    "desc": "MySQL-compatible relational database (community fork)."
+  },
+  {
+    "key": "OSS:Database:Memcached",
+    "owner": "Memcached community",
+    "desc": "In-memory caching system (simple key-value)."
+  },
+  {
+    "key": "OSS:Database:MongoDB Community",
+    "owner": "MongoDB, Inc.",
+    "desc": "Document-oriented NoSQL database. SSPL license; community edition."
+  },
+  {
+    "key": "OSS:Database:MySQL",
+    "owner": "Oracle",
+    "desc": "Relational database widely used for web applications. MariaDB is a community fork."
+  },
+  {
+    "key": "OSS:Database:Neo4j",
+    "owner": "Neo4j, Inc.",
+    "desc": "Graph database. Community edition is open-source-ish; licensing varies by edition."
+  },
+  {
+    "key": "OSS:Database:Neon",
+    "owner": "Neon",
+    "desc": "Serverless PostgreSQL with branching."
+  },
+  {
+    "key": "OSS:Database:PostgreSQL",
+    "owner": "PostgreSQL Global Development Group",
+    "desc": "Relational database with extensibility and strong SQL features."
+  },
+  {
+    "key": "OSS:Database:PrestoDB",
+    "owner": "Presto Foundation / community",
+    "desc": "Distributed SQL query engine. Different lineage from Trino."
+  },
+  {
+    "key": "OSS:Database:Redis",
+    "owner": "Redis community / Redis Ltd.",
+    "desc": "In-memory key-value store used for caching, queues, and pub/sub. Licensing has evolved; verify for your use-case."
+  },
+  {
+    "key": "OSS:Database:SQLite",
+    "owner": "SQLite Consortium",
+    "desc": "Embedded relational database library (serverless)."
+  },
+  {
+    "key": "OSS:Database:ScyllaDB",
+    "owner": "ScyllaDB",
+    "desc": "High-performance Cassandra-compatible NoSQL database. Source-available; check licensing."
+  },
+  {
+    "key": "OSS:Database:SurrealDB",
+    "owner": "SurrealDB",
+    "desc": "Multi-model database (SQL, graph, document)."
+  },
+  {
+    "key": "OSS:Database:TiDB",
+    "owner": "PingCAP",
+    "desc": "Distributed SQL database (MySQL-compatible API)."
+  },
+  {
+    "key": "OSS:Database:TimescaleDB",
+    "owner": "Timescale, Inc.",
+    "desc": "PostgreSQL extension for time-series workloads. Core is open-source; check licensing for advanced features."
+  },
+  {
+    "key": "OSS:Database:Trino",
+    "owner": "Trino Software Foundation",
+    "desc": "Distributed SQL query engine for data lakes/warehouses. Formerly PrestoSQL."
+  },
+  {
+    "key": "OSS:Database:Turso",
+    "owner": "Turso",
+    "desc": "Edge-hosted SQLite (libSQL)."
+  },
+  {
+    "key": "OSS:Database:Valkey",
+    "owner": "Linux Foundation (Valkey)",
+    "desc": "Redis-compatible in-memory key-value store forked for permissive governance."
+  },
+  {
+    "key": "OSS:Database:YugabyteDB",
+    "owner": "Yugabyte, Inc.",
+    "desc": "Distributed SQL database (PostgreSQL-compatible API)."
+  },
+  {
+    "key": "OSS:Database:etcd",
+    "owner": "CNCF (etcd)",
+    "desc": "Distributed key-value store (often for config/coordination)."
+  },
+  {
+    "key": "OSS:Directory:OpenLDAP",
+    "owner": "OpenLDAP Project",
+    "desc": "LDAP directory server."
+  },
+  {
+    "key": "OSS:Docs:Docusaurus",
+    "owner": "Meta",
+    "desc": "Documentation site generator."
+  },
+  {
+    "key": "OSS:Docs:MKDocs",
+    "owner": "MKDocs community",
+    "desc": "Static site generator for project documentation."
+  },
+  {
+    "key": "OSS:Docs:Sphinx",
+    "owner": "Sphinx community",
+    "desc": "Documentation generator for Python and more."
+  },
+  {
+    "key": "OSS:ETL:Airbyte",
+    "owner": "Airbyte",
+    "desc": "ELT data integration platform. Source-available; verify license."
+  },
+  {
+    "key": "OSS:ETL:Apache NiFi",
+    "owner": "Apache Software Foundation",
+    "desc": "Dataflow automation and ingestion."
+  },
+  {
+    "key": "OSS:ETL:Logstash",
+    "owner": "Elastic",
+    "desc": "Log/ETL pipeline tool. License varies."
+  },
+  {
+    "key": "OSS:ETL:dbt Core",
+    "owner": "dbt Labs",
+    "desc": "Transformations in the warehouse (SQL + tests). OSS core + cloud."
+  },
+  {
+    "key": "OSS:Edge:Emissary-Ingress (Ambassador)",
+    "owner": "Ambassador Labs (datawire origin)",
+    "desc": "Kubernetes-native API gateway/ingress. Project evolution varies; verify current status."
+  },
+  {
+    "key": "OSS:Edge:Kong Ingress Controller",
+    "owner": "Kong, Inc.",
+    "desc": "Ingress controller for Kubernetes using Kong."
+  },
+  {
+    "key": "OSS:FeatureFlags:Flagsmith",
+    "owner": "Flagsmith",
+    "desc": "Feature flags and remote config. OSS core + cloud."
+  },
+  {
+    "key": "OSS:FeatureFlags:Unleash",
+    "owner": "Unleash",
+    "desc": "Feature flag platform. OSS core + enterprise."
+  },
+  {
+    "key": "OSS:FileSystem:GlusterFS",
+    "owner": "Red Hat / community",
+    "desc": "Distributed file system."
+  },
+  {
+    "key": "OSS:FileSystem:HDFS",
+    "owner": "Apache Software Foundation",
+    "desc": "Hadoop Distributed File System."
+  },
+  {
+    "key": "OSS:Frontend:Angular",
+    "owner": "Google",
+    "desc": "Front-end web application framework (TypeScript)."
+  },
+  {
+    "key": "OSS:Frontend:Astro",
+    "owner": "Astro community",
+    "desc": "Content-focused web framework (island architecture)."
+  },
+  {
+    "key": "OSS:Frontend:Next.js",
+    "owner": "Vercel",
+    "desc": "React framework for production (SSR/SSG)."
+  },
+  {
+    "key": "OSS:Frontend:Nuxt.js",
+    "owner": "Nuxt community",
+    "desc": "Vue.js framework for production (SSR/SSG)."
+  },
+  {
+    "key": "OSS:Frontend:React",
+    "owner": "Meta (Facebook) / community",
+    "desc": "UI library for building component-based web apps."
+  },
+  {
+    "key": "OSS:Frontend:Remix",
+    "owner": "Shopify",
+    "desc": "Full stack React framework."
+  },
+  {
+    "key": "OSS:Frontend:SolidJS",
+    "owner": "SolidJS community",
+    "desc": "Reactive UI library (fine-grained reactivity)."
+  },
+  {
+    "key": "OSS:Frontend:Svelte",
+    "owner": "Svelte community",
+    "desc": "Compiler-based UI framework for web apps."
+  },
+  {
+    "key": "OSS:Frontend:Vue.js",
+    "owner": "Vue community",
+    "desc": "Progressive JavaScript framework for web UIs."
+  },
+  {
+    "key": "OSS:Frontend:htmx",
+    "owner": "htmx community",
+    "desc": "HTML-driven interactivity via attributes."
+  },
+  {
+    "key": "OSS:GatewayAPI:Kubernetes Gateway API",
+    "owner": "Kubernetes community",
+    "desc": "Standardized APIs for advanced traffic routing in Kubernetes."
+  },
+  {
+    "key": "OSS:GitOps:Argo CD",
+    "owner": "CNCF (Argo)",
+    "desc": "GitOps continuous delivery for Kubernetes."
+  },
+  {
+    "key": "OSS:GitOps:Flux",
+    "owner": "CNCF (Flux)",
+    "desc": "GitOps toolkit for Kubernetes (Helm/Kustomize automation)."
+  },
+  {
+    "key": "OSS:Governance:Apache Atlas",
+    "owner": "Apache Software Foundation",
+    "desc": "Metadata management and governance for Hadoop."
+  },
+  {
+    "key": "OSS:Governance:Apache Ranger",
+    "owner": "Apache Software Foundation",
+    "desc": "Central security admin for Hadoop ecosystem."
+  },
+  {
+    "key": "OSS:IaC:AWS CDK",
+    "owner": "Amazon Web Services",
+    "desc": "IaC framework for AWS using programming languages. Open-source core."
+  },
+  {
+    "key": "OSS:IaC:Crossplane",
+    "owner": "CNCF (Crossplane)",
+    "desc": "Kubernetes-native IaC/control-plane framework for cloud resources."
+  },
+  {
+    "key": "OSS:IaC:OpenTofu",
+    "owner": "Linux Foundation (OpenTofu)",
+    "desc": "Community-driven Terraform-compatible IaC tool."
+  },
+  {
+    "key": "OSS:IaC:Pulumi",
+    "owner": "Pulumi",
+    "desc": "IaC using real programming languages. OSS SDKs + commercial options."
+  },
+  {
+    "key": "OSS:IaC:Terraform",
+    "owner": "HashiCorp",
+    "desc": "Infrastructure as code tool for provisioning across clouds. License varies by version; OpenTofu is a community fork."
+  },
+  {
+    "key": "OSS:Identity:Keycloak",
+    "owner": "Keycloak community (Red Hat origin)",
+    "desc": "IAM solution supporting OIDC/SAML, SSO, federation."
+  },
+  {
+    "key": "OSS:Identity:ORY Hydra",
+    "owner": "ORY",
+    "desc": "OAuth2/OIDC provider server."
+  },
+  {
+    "key": "OSS:Identity:ORY Kratos",
+    "owner": "ORY",
+    "desc": "Identity management for cloud-native apps."
+  },
+  {
+    "key": "OSS:ImageSpec:OCI",
+    "owner": "Open Container Initiative",
+    "desc": "Standards for container images and runtimes."
+  },
+  {
+    "key": "OSS:Ingress:Contour",
+    "owner": "VMware / community",
+    "desc": "Envoy-based ingress controller for Kubernetes."
+  },
+  {
+    "key": "OSS:Ingress:HAProxy Ingress",
+    "owner": "HAProxy Technologies",
+    "desc": "HAProxy-based Ingress Controller for Kubernetes."
+  },
+  {
+    "key": "OSS:Ingress:Kubernetes Ingress-NGINX",
+    "owner": "Kubernetes community",
+    "desc": "NGINX-based Ingress Controller for Kubernetes."
+  },
+  {
+    "key": "OSS:Ingress:Traefik",
+    "owner": "Traefik Labs",
+    "desc": "Ingress controller and edge router with dynamic configuration."
+  },
+  {
+    "key": "OSS:Integration:Apache Camel",
+    "owner": "Apache Software Foundation",
+    "desc": "Integration framework with connectors (enterprise integration patterns)."
+  },
+  {
+    "key": "OSS:Integration:Debezium",
+    "owner": "CNCF (Debezium)",
+    "desc": "Change Data Capture (CDC) platform (often Kafka Connect-based)."
+  },
+  {
+    "key": "OSS:Integration:Kafka Connect",
+    "owner": "Apache Kafka community",
+    "desc": "Framework for streaming data between Kafka and external systems."
+  },
+  {
+    "key": "OSS:LoadBalancing:MetalLB",
+    "owner": "CNCF (MetalLB)",
+    "desc": "Load balancer implementation for bare-metal Kubernetes."
+  },
+  {
+    "key": "OSS:LoadTesting:Locust",
+    "owner": "Locust.io community",
+    "desc": "Python-based load testing."
+  },
+  {
+    "key": "OSS:LoadTesting:k6",
+    "owner": "Grafana Labs",
+    "desc": "Load testing tool."
+  },
+  {
+    "key": "OSS:Logging:Logstash",
+    "owner": "Elastic",
+    "desc": "Log processing pipeline. License varies."
+  },
+  {
+    "key": "OSS:Logging:rsyslog",
+    "owner": "rsyslog community",
+    "desc": "System logging daemon."
+  },
+  {
+    "key": "OSS:Logging:syslog-ng",
+    "owner": "syslog-ng community",
+    "desc": "System logging daemon."
+  },
+  {
+    "key": "OSS:Logs:OpenSearch",
+    "owner": "OpenSearch Project",
+    "desc": "Search/log analytics engine."
+  },
+  {
+    "key": "OSS:ML:KServe",
+    "owner": "KServe community",
+    "desc": "Model serving on Kubernetes (formerly KFServing)."
+  },
+  {
+    "key": "OSS:ML:Kubeflow",
+    "owner": "Kubeflow community",
+    "desc": "ML workflows on Kubernetes."
+  },
+  {
+    "key": "OSS:ML:MLflow",
+    "owner": "LF AI & Data (MLflow)",
+    "desc": "Experiment tracking and model registry. Databricks origin."
+  },
+  {
+    "key": "OSS:ML:PyTorch",
+    "owner": "Linux Foundation (PyTorch)",
+    "desc": "Machine learning framework."
+  },
+  {
+    "key": "OSS:ML:Ray",
+    "owner": "Ray Project",
+    "desc": "Distributed execution framework for Python/ML."
+  },
+  {
+    "key": "OSS:ML:TensorFlow",
+    "owner": "Google",
+    "desc": "Machine learning framework."
+  },
+  {
+    "key": "OSS:Messaging:Apache RocketMQ",
+    "owner": "Apache Software Foundation",
+    "desc": "Distributed messaging and streaming platform."
+  },
+  {
+    "key": "OSS:Messaging:gRPC-Gateway",
+    "owner": "grpc-ecosystem",
+    "desc": "RESTful JSON API proxy for gRPC services."
+  },
+  {
+    "key": "OSS:Metrics:StatsD",
+    "owner": "Etsy origin / community",
+    "desc": "Simple metrics aggregation protocol/daemon."
+  },
+  {
+    "key": "OSS:Mobile:Expo",
+    "owner": "Expo community",
+    "desc": "React Native development platform and toolchain."
+  },
+  {
+    "key": "OSS:Mobile:Flutter",
+    "owner": "Google",
+    "desc": "Cross-platform UI toolkit (Dart)."
+  },
+  {
+    "key": "OSS:Mobile:Ionic",
+    "owner": "Ionic",
+    "desc": "Cross-platform app development with web technologies."
+  },
+  {
+    "key": "OSS:Mobile:React Native",
+    "owner": "Meta",
+    "desc": "Cross-platform mobile app framework (JavaScript/React)."
+  },
+  {
+    "key": "OSS:Monitoring:Icinga",
+    "owner": "Icinga",
+    "desc": "Monitoring system (Nagios fork)."
+  },
+  {
+    "key": "OSS:Monitoring:Nagios",
+    "owner": "Nagios Enterprises / community",
+    "desc": "Host/service monitoring."
+  },
+  {
+    "key": "OSS:Monitoring:Zabbix",
+    "owner": "Zabbix",
+    "desc": "Monitoring platform."
+  },
+  {
+    "key": "OSS:Networking:CNI (Calico)",
+    "owner": "Tigera (Calico OSS)",
+    "desc": "Kubernetes networking + network policy via CNI."
+  },
+  {
+    "key": "OSS:Networking:Cilium",
+    "owner": "CNCF (Cilium)",
+    "desc": "eBPF-based networking, security, and observability for Kubernetes."
+  },
+  {
+    "key": "OSS:Networking:Flannel",
+    "owner": "CoreOS origin / community",
+    "desc": "Simple Kubernetes overlay network (CNI)."
+  },
+  {
+    "key": "OSS:Notebook:Jupyter",
+    "owner": "Project Jupyter",
+    "desc": "Interactive notebooks for data science."
+  },
+  {
+    "key": "OSS:ObjectStore:Ceph",
+    "owner": "Ceph community",
+    "desc": "Distributed storage (object, block, file)."
+  },
+  {
+    "key": "OSS:ObjectStore:MinIO",
+    "owner": "MinIO, Inc.",
+    "desc": "S3-compatible object storage server."
+  },
+  {
+    "key": "OSS:Observability:Alertmanager",
+    "owner": "Prometheus community",
+    "desc": "Alert routing/notification for Prometheus alerts."
+  },
+  {
+    "key": "OSS:Observability:Cortex",
+    "owner": "CNCF (Cortex)",
+    "desc": "Horizontally scalable Prometheus-compatible metrics backend."
+  },
+  {
+    "key": "OSS:Observability:ELK Stack",
+    "owner": "Elastic / community",
+    "desc": "Elasticsearch + Logstash + Kibana for logging/search. Licensing varies."
+  },
+  {
+    "key": "OSS:Observability:Fluent Bit",
+    "owner": "CNCF (Fluent Bit)",
+    "desc": "Lightweight log processor/forwarder."
+  },
+  {
+    "key": "OSS:Observability:Fluentd",
+    "owner": "CNCF (Fluentd)",
+    "desc": "Log collector and forwarder."
+  },
+  {
+    "key": "OSS:Observability:Grafana",
+    "owner": "Grafana Labs",
+    "desc": "Dashboards and visualization for metrics/logs/traces."
+  },
+  {
+    "key": "OSS:Observability:Jaeger",
+    "owner": "CNCF (Jaeger)",
+    "desc": "Distributed tracing system."
+  },
+  {
+    "key": "OSS:Observability:Loki",
+    "owner": "Grafana Labs",
+    "desc": "Log aggregation system (Prometheus-like labels)."
+  },
+  {
+    "key": "OSS:Observability:Mimir",
+    "owner": "Grafana Labs",
+    "desc": "Scalable Prometheus-compatible metrics backend."
+  },
+  {
+    "key": "OSS:Observability:OpenSearch Dashboards",
+    "owner": "OpenSearch Project",
+    "desc": "Visualization UI for OpenSearch. Fork of Kibana."
+  },
+  {
+    "key": "OSS:Observability:OpenSearch Ingestion",
+    "owner": "OpenSearch Project",
+    "desc": "Pipeline/ingestion for OpenSearch (like Logstash)."
+  },
+  {
+    "key": "OSS:Observability:OpenTelemetry",
+    "owner": "CNCF (OpenTelemetry)",
+    "desc": "Standard for traces/metrics/logs instrumentation and collectors."
+  },
+  {
+    "key": "OSS:Observability:Prometheus",
+    "owner": "CNCF (Prometheus)",
+    "desc": "Metrics scraping, storage, and alerting."
+  },
+  {
+    "key": "OSS:Observability:Telegraf",
+    "owner": "InfluxData",
+    "desc": "Agent for collecting and reporting metrics/events."
+  },
+  {
+    "key": "OSS:Observability:Tempo",
+    "owner": "Grafana Labs",
+    "desc": "Distributed tracing backend."
+  },
+  {
+    "key": "OSS:Observability:Thanos",
+    "owner": "CNCF (Thanos)",
+    "desc": "Highly available Prometheus with long-term storage."
+  },
+  {
+    "key": "OSS:Observability:Vector",
+    "owner": "Datadog (Vector OSS)",
+    "desc": "High-performance observability data pipeline."
+  },
+  {
+    "key": "OSS:Observability:VictoriaMetrics",
+    "owner": "VictoriaMetrics",
+    "desc": "Time-series database and Prometheus-compatible monitoring. License varies."
+  },
+  {
+    "key": "OSS:Observability:Zipkin",
+    "owner": "Zipkin community",
+    "desc": "Distributed tracing system."
+  },
+  {
+    "key": "OSS:Orchestration:Kubernetes",
+    "owner": "CNCF (Kubernetes)",
+    "desc": "Container orchestration platform for deploying and managing workloads."
+  },
+  {
+    "key": "OSS:Orchestration:Nomad",
+    "owner": "HashiCorp",
+    "desc": "Workload orchestrator for containers and non-container jobs."
+  },
+  {
+    "key": "OSS:PKI:Let's Encrypt",
+    "owner": "Internet Security Research Group (ISRG)",
+    "desc": "Free, automated TLS certificates via ACME. Service, not a software platform per se."
+  },
+  {
+    "key": "OSS:PKI:cert-manager",
+    "owner": "CNCF (cert-manager)",
+    "desc": "Kubernetes certificate management (ACME, PKI)."
+  },
+  {
+    "key": "OSS:PackageManager:cargo",
+    "owner": "Rust Foundation",
+    "desc": "Rust package manager and build tool."
+  },
+  {
+    "key": "OSS:PackageManager:npm",
+    "owner": "npm, Inc.",
+    "desc": "Node.js package manager."
+  },
+  {
+    "key": "OSS:PackageManager:pip",
+    "owner": "Python Packaging Authority",
+    "desc": "Python package installer."
+  },
+  {
+    "key": "OSS:PackageManager:pnpm",
+    "owner": "pnpm community",
+    "desc": "Efficient Node.js package manager."
+  },
+  {
+    "key": "OSS:PackageManager:uv",
+    "owner": "Astral",
+    "desc": "Fast Python package manager and resolver."
+  },
+  {
+    "key": "OSS:PackageManager:yarn",
+    "owner": "Yarn community",
+    "desc": "Fast Node.js package manager."
+  },
+  {
+    "key": "OSS:Packaging:Helm",
+    "owner": "CNCF (Helm)",
+    "desc": "Kubernetes package manager using charts."
+  },
+  {
+    "key": "OSS:Packaging:Kustomize",
+    "owner": "Kubernetes SIGs",
+    "desc": "Template-free Kubernetes config customization tool."
+  },
+  {
+    "key": "OSS:Platform:K3s",
+    "owner": "SUSE (Rancher)",
+    "desc": "Lightweight Kubernetes distribution."
+  },
+  {
+    "key": "OSS:Platform:Kind",
+    "owner": "Kubernetes SIGs",
+    "desc": "Kubernetes-in-Docker for local clusters/testing."
+  },
+  {
+    "key": "OSS:Platform:MicroK8s",
+    "owner": "Canonical",
+    "desc": "Lightweight Kubernetes distribution for dev/edge."
+  },
+  {
+    "key": "OSS:Platform:Minikube",
+    "owner": "Kubernetes SIGs",
+    "desc": "Local Kubernetes cluster tool."
+  },
+  {
+    "key": "OSS:Platform:OpenShift (OKD)",
+    "owner": "Red Hat / community",
+    "desc": "Kubernetes platform distribution (community edition is OKD). OpenShift Enterprise is commercial."
+  },
+  {
+    "key": "OSS:Platform:Rancher",
+    "owner": "SUSE",
+    "desc": "Kubernetes management platform (multi-cluster)."
+  },
+  {
+    "key": "OSS:Policy:Kyverno",
+    "owner": "CNCF (Kyverno)",
+    "desc": "Kubernetes-native policy management (validate/mutate/generate)."
+  },
+  {
+    "key": "OSS:Policy:OPA",
+    "owner": "CNCF (Open Policy Agent)",
+    "desc": "Policy engine for authorization, admission control, and compliance (Rego)."
+  },
+  {
+    "key": "OSS:Proxy:Envoy",
+    "owner": "CNCF (Envoy)",
+    "desc": "L7 proxy used for service mesh, ingress, and edge gateways."
+  },
+  {
+    "key": "OSS:Proxy:HAProxy",
+    "owner": "HAProxy community",
+    "desc": "High-performance TCP/HTTP load balancer and proxy."
+  },
+  {
+    "key": "OSS:Queue:Celery",
+    "owner": "Celery community",
+    "desc": "Distributed task queue for Python. Often uses Redis/RabbitMQ."
+  },
+  {
+    "key": "OSS:Queue:Resque",
+    "owner": "GitHub origin / community",
+    "desc": "Redis-backed job queue for Ruby."
+  },
+  {
+    "key": "OSS:Queue:Sidekiq",
+    "owner": "Sidekiq community",
+    "desc": "Background job processing for Ruby. Often uses Redis."
+  },
+  {
+    "key": "OSS:Queuing:Apache ActiveMQ",
+    "owner": "Apache Software Foundation",
+    "desc": "Message broker (JMS) for queues/topics. Variants: ActiveMQ Classic, Artemis."
+  },
+  {
+    "key": "OSS:Queuing:Apache ActiveMQ Artemis",
+    "owner": "Apache Software Foundation",
+    "desc": "Next-gen ActiveMQ broker (high performance)."
+  },
+  {
+    "key": "OSS:Queuing:NATS",
+    "owner": "CNCF (NATS)",
+    "desc": "Lightweight messaging system (pub/sub, request/reply)."
+  },
+  {
+    "key": "OSS:Queuing:RabbitMQ",
+    "owner": "VMware (Tanzu) / community",
+    "desc": "Message broker implementing AMQP and other protocols."
+  },
+  {
+    "key": "OSS:Queuing:Redis Streams",
+    "owner": "Redis community / Redis Ltd.",
+    "desc": "Stream data structure in Redis for log/queue-like use."
+  },
+  {
+    "key": "OSS:Queuing:ZeroMQ",
+    "owner": "iMatix / community",
+    "desc": "High-performance async messaging library (brokerless)."
+  },
+  {
+    "key": "OSS:RPC:Cap'n Proto",
+    "owner": "Cap'n Proto community",
+    "desc": "Serialization and RPC system."
+  },
+  {
+    "key": "OSS:RPC:Thrift",
+    "owner": "Apache Software Foundation",
+    "desc": "Interface definition language and RPC framework."
+  },
+  {
+    "key": "OSS:ReverseProxy:Traefik",
+    "owner": "Traefik Labs",
+    "desc": "Reverse proxy/ingress with automatic service discovery."
+  },
+  {
+    "key": "OSS:Runtime:.NET (dotnet)",
+    "owner": ".NET Foundation / Microsoft",
+    "desc": "Open-source .NET runtime and SDK for building services/apps."
+  },
+  {
+    "key": "OSS:Runtime:Bun",
+    "owner": "Oven",
+    "desc": "Fast JavaScript runtime, bundler, and package manager."
+  },
+  {
+    "key": "OSS:Runtime:Deno",
+    "owner": "Deno Land",
+    "desc": "Secure JavaScript/TypeScript runtime."
+  },
+  {
+    "key": "OSS:Runtime:Go",
+    "owner": "Go project (Google origin)",
+    "desc": "Compiled language/runtime widely used for cloud-native tooling."
+  },
+  {
+    "key": "OSS:Runtime:Java (OpenJDK)",
+    "owner": "OpenJDK community",
+    "desc": "Open-source Java platform (JDK) for running JVM workloads."
+  },
+  {
+    "key": "OSS:Runtime:Node.js",
+    "owner": "OpenJS Foundation",
+    "desc": "JavaScript runtime for server-side applications."
+  },
+  {
+    "key": "OSS:Runtime:Python",
+    "owner": "Python Software Foundation",
+    "desc": "General-purpose programming language + runtime."
+  },
+  {
+    "key": "OSS:Runtime:Rust",
+    "owner": "Rust Foundation",
+    "desc": "Systems programming language focused on safety and performance."
+  },
+  {
+    "key": "OSS:SCM:Git",
+    "owner": "Git community (Linus Torvalds origin)",
+    "desc": "Distributed version control system."
+  },
+  {
+    "key": "OSS:SCM:GitLab CE",
+    "owner": "GitLab",
+    "desc": "DevOps platform (source control, CI/CD)."
+  },
+  {
+    "key": "OSS:SCM:Gitea",
+    "owner": "Gitea community",
+    "desc": "Self-hosted Git service (GitHub-like)."
+  },
+  {
+    "key": "OSS:Scheduler:Keda",
+    "owner": "CNCF (KEDA)",
+    "desc": "Kubernetes event-driven autoscaling."
+  },
+  {
+    "key": "OSS:Scheduling:Quartz",
+    "owner": "Quartz Scheduler",
+    "desc": "Java job scheduling library."
+  },
+  {
+    "key": "OSS:Search:Apache Solr",
+    "owner": "Apache Software Foundation",
+    "desc": "Search platform built on Lucene."
+  },
+  {
+    "key": "OSS:Search:Lucene",
+    "owner": "Apache Software Foundation",
+    "desc": "Search library underpinning Solr/Elasticsearch."
+  },
+  {
+    "key": "OSS:Search:Meilisearch",
+    "owner": "Meilisearch",
+    "desc": "Lightweight full-text search engine."
+  },
+  {
+    "key": "OSS:Search:OpenSearch",
+    "owner": "OpenSearch Project",
+    "desc": "Open-source search and analytics suite (Elasticsearch/Kibana fork)."
+  },
+  {
+    "key": "OSS:Search:Typesense",
+    "owner": "Typesense community",
+    "desc": "Open-source typo-tolerant search engine."
+  },
+  {
+    "key": "OSS:Search:Vespa",
+    "owner": "Vespa.ai (Yahoo origin)",
+    "desc": "Big data serving engine (search, recommendations)."
+  },
+  {
+    "key": "OSS:SearchUI:OpenSearch Dashboards",
+    "owner": "OpenSearch Project",
+    "desc": "Visualization for OpenSearch."
+  },
+  {
+    "key": "OSS:Secrets:External Secrets Operator",
+    "owner": "External Secrets community",
+    "desc": "Sync secrets from secret stores into Kubernetes."
+  },
+  {
+    "key": "OSS:Secrets:SOPS",
+    "owner": "Mozilla (origin) / community",
+    "desc": "Encrypt/decrypt YAML/JSON/etc. for GitOps secret management."
+  },
+  {
+    "key": "OSS:Secrets:Vault",
+    "owner": "HashiCorp",
+    "desc": "Secrets management, encryption-as-a-service, and PKI. Has OSS + enterprise."
+  },
+  {
+    "key": "OSS:Security:Clair",
+    "owner": "CNCF / community",
+    "desc": "Container vulnerability analysis tool."
+  },
+  {
+    "key": "OSS:Security:Falco",
+    "owner": "CNCF (Falco)",
+    "desc": "Runtime security (syscall monitoring) for containers/Kubernetes."
+  },
+  {
+    "key": "OSS:Security:LibreSSL",
+    "owner": "OpenBSD Project",
+    "desc": "Fork of OpenSSL with security-focused changes."
+  },
+  {
+    "key": "OSS:Security:OpenSCAP",
+    "owner": "OpenSCAP community",
+    "desc": "Security compliance scanning and SCAP content."
+  },
+  {
+    "key": "OSS:Security:OpenSSL",
+    "owner": "OpenSSL Project",
+    "desc": "TLS/crypto library used widely in software stacks."
+  },
+  {
+    "key": "OSS:Security:Sigstore",
+    "owner": "Linux Foundation (Sigstore)",
+    "desc": "Signing, transparency logs, and verification for software supply chain."
+  },
+  {
+    "key": "OSS:Security:Trivy",
+    "owner": "Aqua Security",
+    "desc": "Vulnerability scanner for containers and IaC."
+  },
+  {
+    "key": "OSS:Security:Wazuh",
+    "owner": "Wazuh",
+    "desc": "Open-source security monitoring (SIEM/XDR-like)."
+  },
+  {
+    "key": "OSS:Security:cosign",
+    "owner": "Sigstore",
+    "desc": "Container image signing and verification tool."
+  },
+  {
+    "key": "OSS:Serialization:Apache Avro",
+    "owner": "Apache Software Foundation",
+    "desc": "Schema-based binary data serialization."
+  },
+  {
+    "key": "OSS:Serialization:Apache ORC",
+    "owner": "Apache Software Foundation",
+    "desc": "Columnar storage format optimized for Hive."
+  },
+  {
+    "key": "OSS:Serialization:Apache Parquet",
+    "owner": "Apache Software Foundation",
+    "desc": "Columnar storage format for analytics."
+  },
+  {
+    "key": "OSS:Serialization:Protocol Buffers",
+    "owner": "Google",
+    "desc": "Binary serialization format used by gRPC."
+  },
+  {
+    "key": "OSS:Serverless:Knative",
+    "owner": "CNCF (Knative)",
+    "desc": "Kubernetes-based serverless platform."
+  },
+  {
+    "key": "OSS:Serverless:OpenFaaS",
+    "owner": "OpenFaaS Ltd.",
+    "desc": "Functions-as-a-Service on Kubernetes and more."
+  },
+  {
+    "key": "OSS:ServiceCatalog:Backstage",
+    "owner": "CNCF (Backstage)",
+    "desc": "Developer portal for service catalog, templates, docs."
+  },
+  {
+    "key": "OSS:ServiceDiscovery:Consul",
+    "owner": "HashiCorp",
+    "desc": "Service discovery, KV store, and service mesh features. Has OSS + enterprise."
+  },
+  {
+    "key": "OSS:ServiceDiscovery:Eureka",
+    "owner": "Netflix",
+    "desc": "Service discovery server (popular in Spring/Java stacks)."
+  },
+  {
+    "key": "OSS:ServiceDiscovery:Zookeeper",
+    "owner": "Apache Software Foundation",
+    "desc": "Coordination service used by Kafka (legacy) and other distributed systems."
+  },
+  {
+    "key": "OSS:ServiceDiscovery:etcd",
+    "owner": "CNCF (etcd)",
+    "desc": "Distributed key-value store used by Kubernetes as its backing store."
+  },
+  {
+    "key": "OSS:ServiceMesh:Cilium Service Mesh",
+    "owner": "Cilium / Isovalent",
+    "desc": "Service mesh features using eBPF (sidecarless)."
+  },
+  {
+    "key": "OSS:ServiceMesh:Consul Service Mesh",
+    "owner": "HashiCorp",
+    "desc": "Service mesh capabilities integrated with Consul."
+  },
+  {
+    "key": "OSS:ServiceMesh:Istio",
+    "owner": "Istio community",
+    "desc": "Service mesh for traffic management, security (mTLS), and observability."
+  },
+  {
+    "key": "OSS:ServiceMesh:Kuma",
+    "owner": "CNCF (Kuma)",
+    "desc": "Universal service mesh based on Envoy, supports K8s + VMs."
+  },
+  {
+    "key": "OSS:ServiceMesh:Linkerd",
+    "owner": "CNCF (Linkerd)",
+    "desc": "Lightweight service mesh for Kubernetes focused on simplicity and performance."
+  },
+  {
+    "key": "OSS:ServiceMesh:Open Service Mesh",
+    "owner": "OSM community (Microsoft origin)",
+    "desc": "Service mesh for Kubernetes built on Envoy. Project status varies by community; verify current maintenance before adopting."
+  },
+  {
+    "key": "OSS:Storage:Longhorn",
+    "owner": "SUSE",
+    "desc": "Cloud-native distributed block storage for Kubernetes."
+  },
+  {
+    "key": "OSS:Storage:Rook",
+    "owner": "CNCF (Rook)",
+    "desc": "Storage orchestration for Kubernetes (Ceph, etc.)."
+  },
+  {
+    "key": "OSS:Streaming:Apache Beam",
+    "owner": "Apache Software Foundation",
+    "desc": "Unified programming model for batch + streaming pipelines. Runners include Dataflow, Flink, Spark."
+  },
+  {
+    "key": "OSS:Streaming:Apache Flink",
+    "owner": "Apache Software Foundation",
+    "desc": "Stream processing engine for stateful computations."
+  },
+  {
+    "key": "OSS:Streaming:Apache Kafka",
+    "owner": "Apache Software Foundation",
+    "desc": "Distributed event streaming platform (pub/sub + log). Also used as durable queue."
+  },
+  {
+    "key": "OSS:Streaming:Apache Pulsar",
+    "owner": "Apache Software Foundation",
+    "desc": "Distributed pub/sub messaging and streaming platform."
+  },
+  {
+    "key": "OSS:Streaming:Apache Samza",
+    "owner": "Apache Software Foundation",
+    "desc": "Stream processing framework."
+  },
+  {
+    "key": "OSS:Streaming:Apache Spark",
+    "owner": "Apache Software Foundation",
+    "desc": "Distributed compute engine for batch + streaming (Structured Streaming)."
+  },
+  {
+    "key": "OSS:Streaming:Apache Storm",
+    "owner": "Apache Software Foundation",
+    "desc": "Real-time computation system (legacy)."
+  },
+  {
+    "key": "OSS:Streaming:Redpanda",
+    "owner": "Redpanda Data",
+    "desc": "Kafka-compatible streaming platform (single binary). License varies; verify."
+  },
+  {
+    "key": "OSS:Testing:Cypress",
+    "owner": "Cypress.io",
+    "desc": "End-to-end testing framework for web apps. OSS core + cloud."
+  },
+  {
+    "key": "OSS:Testing:Go testing",
+    "owner": "Go project",
+    "desc": "Built-in testing framework for Go."
+  },
+  {
+    "key": "OSS:Testing:JUnit",
+    "owner": "JUnit community",
+    "desc": "Unit testing framework for Java."
+  },
+  {
+    "key": "OSS:Testing:Jest",
+    "owner": "Meta / community",
+    "desc": "JavaScript testing framework."
+  },
+  {
+    "key": "OSS:Testing:Mocha",
+    "owner": "Mocha community",
+    "desc": "JavaScript test framework for Node.js."
+  },
+  {
+    "key": "OSS:Testing:Playwright",
+    "owner": "Microsoft",
+    "desc": "End-to-end browser testing and automation."
+  },
+  {
+    "key": "OSS:Testing:RSpec",
+    "owner": "RSpec community",
+    "desc": "BDD testing framework for Ruby."
+  },
+  {
+    "key": "OSS:Testing:Selenium",
+    "owner": "Selenium community",
+    "desc": "Browser automation and testing framework."
+  },
+  {
+    "key": "OSS:Testing:Vitest",
+    "owner": "Vitest community",
+    "desc": "Vite-native unit testing framework."
+  },
+  {
+    "key": "OSS:Testing:pytest",
+    "owner": "pytest-dev",
+    "desc": "Python testing framework."
+  },
+  {
+    "key": "OSS:Tracing:Grafana Tempo",
+    "owner": "Grafana Labs",
+    "desc": "Trace backend."
+  },
+  {
+    "key": "OSS:Tracing:OpenTelemetry Collector",
+    "owner": "CNCF (OpenTelemetry)",
+    "desc": "Collector for receiving/processing/exporting telemetry."
+  },
+  {
+    "key": "OSS:Tracing:OpenTracing",
+    "owner": "CNCF (archived)",
+    "desc": "Older tracing API standard (superseded by OpenTelemetry)."
+  },
+  {
+    "key": "OSS:VectorDB:Annoy",
+    "owner": "Spotify",
+    "desc": "Approximate nearest neighbors library (not a database)."
+  },
+  {
+    "key": "OSS:VectorDB:Chroma",
+    "owner": "Chroma community",
+    "desc": "Embedding database for LLM apps (developer-focused)."
+  },
+  {
+    "key": "OSS:VectorDB:FAISS",
+    "owner": "Meta",
+    "desc": "Library for efficient similarity search/clustering of dense vectors (not a database)."
+  },
+  {
+    "key": "OSS:VectorDB:Milvus",
+    "owner": "LF AI & Data (Milvus)",
+    "desc": "Vector database for embeddings and similarity search."
+  },
+  {
+    "key": "OSS:VectorDB:Qdrant",
+    "owner": "Qdrant",
+    "desc": "Vector search engine + database (Rust-based)."
+  },
+  {
+    "key": "OSS:VectorDB:Weaviate",
+    "owner": "Weaviate",
+    "desc": "Vector database with semantic search and modules. License varies; verify."
+  },
+  {
+    "key": "OSS:VectorDB:hnswlib",
+    "owner": "hnswlib community",
+    "desc": "Approximate nearest neighbors library based on HNSW (not a database)."
+  },
+  {
+    "key": "OSS:VectorDB:pgvector",
+    "owner": "pgvector community",
+    "desc": "PostgreSQL extension for vector similarity search."
+  },
+  {
+    "key": "OSS:Virtualization:KVM",
+    "owner": "Linux kernel community",
+    "desc": "Kernel-based Virtual Machine hypervisor for running VMs on Linux."
+  },
+  {
+    "key": "OSS:Virtualization:QEMU",
+    "owner": "QEMU community",
+    "desc": "Machine emulator and virtualizer used with KVM and for cross-arch emulation."
+  },
+  {
+    "key": "OSS:Virtualization:Xen",
+    "owner": "Xen Project",
+    "desc": "Type-1 hypervisor commonly used in cloud/virtualization stacks."
+  },
+  {
+    "key": "OSS:WAF:ModSecurity",
+    "owner": "Trustwave/SpiderLabs origin / community",
+    "desc": "Web application firewall engine (often with Nginx/Apache)."
+  },
+  {
+    "key": "OSS:WAF:OWASP CRS",
+    "owner": "OWASP",
+    "desc": "Core rule set for ModSecurity WAF."
+  },
+  {
+    "key": "OSS:WebServer:Apache HTTP Server",
+    "owner": "Apache Software Foundation",
+    "desc": "General-purpose web server (httpd)."
+  },
+  {
+    "key": "OSS:WebServer:Caddy",
+    "owner": "Caddy community",
+    "desc": "Modern web server with automatic HTTPS."
+  },
+  {
+    "key": "OSS:WebServer:Nginx",
+    "owner": "F5 (NGINX)",
+    "desc": "High-performance web server, reverse proxy, and load balancer. Open-source nginx; NGINX Plus is commercial."
+  },
+  {
+    "key": "OSS:Workflow:Apache Airflow",
+    "owner": "Apache Software Foundation",
+    "desc": "Workflow orchestration for data pipelines (DAGs)."
+  },
+  {
+    "key": "OSS:Workflow:Argo Workflows",
+    "owner": "CNCF (Argo)",
+    "desc": "Kubernetes-native workflows engine."
+  },
+  {
+    "key": "OSS:Workflow:Dagster",
+    "owner": "Dagster Labs",
+    "desc": "Data orchestration platform for pipelines and assets. OSS core + cloud."
+  },
+  {
+    "key": "OSS:Workflow:Luigi",
+    "owner": "Spotify",
+    "desc": "Batch pipeline framework."
+  },
+  {
+    "key": "OSS:Workflow:Netflix Conductor",
+    "owner": "Netflix / community",
+    "desc": "Microservices orchestration engine."
+  },
+  {
+    "key": "OSS:Workflow:Prefect",
+    "owner": "Prefect Technologies",
+    "desc": "Workflow orchestration for data/ML pipelines. OSS core + cloud."
+  },
+  {
+    "key": "OSS:Workflow:Temporal",
+    "owner": "Temporal Technologies",
+    "desc": "Durable workflow orchestration engine for microservices. Based on Uber Cadence lineage; OSS core."
+  }
+]

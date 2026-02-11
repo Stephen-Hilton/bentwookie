@@ -1,66 +1,87 @@
-# BentWookie
+# BentWookie v0.3
 
 > "I bent my wookie."  - Ralph Wiggum
 
-BentWookie - AI coding loop that manages development requests through a phase-based workflow using the Claude Agent SDK for execution, with centrally managed deployment and infrastructure configurations.
+BentWookie is an AI agent swarm orchestration framework that decomposes software projects through a 4-level hierarchy (Project > Service > Component > Function), manages all agents as Claude Code instances in BW-controlled terminal shells, and coordinates them via a dependency-driven build system with inter-agent messaging.
 
 ## QuickStart
 
-### Using Claude Max (Recommended)
-
 ```bash
-# Install
-python -m pip install bentwookie
+# Clone and install
+git clone https://github.com/bentwookie/bentwookie.git
+cd bentwookie
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
 
-# Initialize with Claude Max subscription
-bw init --auth max
+# Initialize workspace (default data directory: ./data)
+bw init
 
-# Create your first project and request
-bw project create myapp --desc "My application"
-bw request create myapp -n "Add login" -m "Implement user authentication"
+# Or specify a custom data directory
+bw init /path/to/my/data
 
-# Start processing
-bw loop start --foreground
+# Start the web UI
+bw web start
+
+# Open in browser
+open http://127.0.0.1:5000
 ```
 
-### Using API Key
+From the web UI, create a project (which starts an AI interview), manage agents, and monitor builds.
 
-```bash
-# Initialize with API key mode
-bw init --auth api
+### Requirements
 
-# Set your API key
-export ANTHROPIC_API_KEY="your-key-here"
-
-# Start processing
-bw loop start --foreground
-```
+- Python 3.11+
+- SQLite (included with Python)
+- Claude Code CLI (`claude`) installed and authenticated
+- Claude Agent SDK (`claude-agent-sdk`)
+- Flask (for web UI)
 
 ## Overview
 
-BentWookie v2 provides:
+BentWookie operates in four sequential phases:
 
-- **SQLite Database**: Persistent state management for projects and requests
-- **Claude Agent SDK Integration**: Automated processing through development phases
-- **Phase-Based Workflow**: plan → dev → test → deploy → verify → document → commit
-- **Git Integration**: Automatic commit and push with AI-generated commit messages
-- **Project Customization**: Project-level prompts and claude.md file integration
-- **Flexible Configuration**: Global, project-level, and request-level settings
-- **CLI Interface**: Full control via command line
-- **Web UI**: Browser-based dashboard with auto-refresh for real-time status
-- **Daemon Mode**: Background processing of queued requests
-- **Smart Workspace Detection**: Automatically finds BentWookie workspace
-- **Editable Prompts**: Phase templates in `data/prompts/` - edit without restart
-- **Rate Limit Handling**: Automatic retry with backoff on API limits
+| Phase | Direction | Driver | What Happens |
+|-------|-----------|--------|--------------|
+| **Define** | Top-Down | Human + AI | Two conversational interviews (Business Architect, then Enterprise Architect) extract requirements. Interactive hierarchy decomposition with user approval at each level. |
+| **Design** | Top-Down | AI | AI produces full build plans, dependency graphs, integration maps, and connection point specs for every component. |
+| **Validate Design** | Bottom-Up | AI | AI validates design from Function upward, adjusts plans/dependencies, generates test specifications (not runnable code) at every level. |
+| **Build** | Middle-Out | AI Swarm | Coding agents implement components + write tests from Phase 3 specs. Service Engineers assemble components and integrate into services. Work is parallelized based on the dependency DAG. |
+| **Test** | Bottom-Up | AI Swarm | Testing agents execute prebuild tests at all levels, starting with functions (unit) and crawling their way up to services an ultimately to all business use-cases. |
+
+### Agent Roles
+
+| Role | Abbreviation | Count | Scope |
+|------|-------------|-------|-------|
+| Enterprise Architect | `ea` | 1 | Architecture, hierarchy decomposition (persistent) |
+| Business Architect | `ba` | 1 | Business goal guidance (persistent) |
+| Service Engineer | `se` | N (per service) | OSS setup, component/service integration |
+| Coding Agent | `ca` | Up to X (configurable) | Single-component implementation + tests |
+| Testing Agent | `ta` | Up to Y (configurable) | Test execution and validation |
+
+Agent names are auto-generated with a role suffix, e.g. "Bastion (ea)", "Pixel (ca)", "Watchdog (ta)".
+
+### Key Features
+
+- **Interview Engine**: Conversational Q&A with voice input (Web Speech API) for project discovery
+- **4-Level Hierarchy**: Project > Service > Component > Function
+- **Dependency-Driven DAG**: Agents only receive work when all upstream dependencies are satisfied
+- **Inter-Agent Messaging**: Normal (queued) and urgent (interrupt) message delivery
+- **Rework Protocol**: Coding Agent > Service Engineer > Architect escalation path
+- **Real-Time Web UI**: SSE-powered monitoring of agents, build progress, and messages
+- **Hierarchical Settings**: Global > Agent Type > Individual Agent override cascade
+- **User-Modifiable Prompts**: All AI agent prompt templates are copied to `data/prompts/` on init for easy customization
+- **SQLite Persistence**: 21 tables tracking projects, components, agents, messages, tests, and more
+- **Golden Wookie Theme**: Custom dark-gold CSS theme across all pages
 
 ## Installation
 
 ```bash
 # Clone the repository
-git clone -b AIGen02 https://github.com/bentwookie/bentwookie.git
+git clone https://github.com/bentwookie/bentwookie.git
 cd bentwookie
 
-# Create virtual environment (recommended)
+# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
@@ -71,54 +92,21 @@ pip install -e .
 pip install -e ".[dev]"
 ```
 
-### Requirements
-
-- Python 3.10+
-- SQLite (included with Python)
-- Claude Agent SDK (`claude-agent-sdk`) - installed automatically
-- Flask (for web UI) - installed automatically
-
 ## Authentication
 
-BentWookie supports two authentication modes:
+BentWookie spawns Claude Code CLI instances as agent subprocesses. Authentication is handled by the Claude CLI:
 
 | Mode | Description | Setup |
 |------|-------------|-------|
-| `max` | Claude Max subscription | Authenticate via `claude` CLI (web auth) |
+| `max` | Claude Max subscription (default) | Authenticate via `claude` CLI |
 | `api` | API key | Set `ANTHROPIC_API_KEY` environment variable |
 
-### Claude Max (Recommended)
-
-Uses your Claude Max subscription via the Claude Code CLI's web authentication:
-
 ```bash
-# Ensure you're authenticated with Claude CLI
+# Ensure Claude CLI is authenticated
 claude --version
 
-# Initialize BentWookie with max mode
-bw init --auth max
-```
-
-### API Key
-
-Uses the Anthropic API directly (requires credits):
-
-```bash
-# Initialize with API mode
-bw init --auth api
-
-# Set your API key
+# Or set API key for API mode
 export ANTHROPIC_API_KEY="sk-ant-..."
-```
-
-Get an API key at [console.anthropic.com](https://console.anthropic.com)
-
-### Switching Modes
-
-```bash
-bw config --auth max    # Switch to Claude Max
-bw config --auth api    # Switch to API key
-bw config --show        # View current settings
 ```
 
 ## CLI Commands
@@ -126,336 +114,334 @@ bw config --show        # View current settings
 ### Initialization
 
 ```bash
-bw init                      # Initialize (prompts for auth mode)
-bw init --auth max           # Use Claude Max subscription
-bw init --auth api           # Use API key
-bw init --db-path ./my.db    # Custom database path
+bw init                    # Initialize workspace in ./data
+bw init /path/to/data      # Initialize workspace in custom directory
 ```
 
-### Configuration
-
-```bash
-bw config --show                        # View all current settings with descriptions
-bw config --auth max                    # Switch to Claude Max mode
-bw config --auth api                    # Switch to API key mode
-bw config --max-turns 100               # Set max API calls per phase
-bw config --poll-interval 60            # Set daemon poll interval (seconds)
-
-# Commit phase configuration
-bw config commit                        # Show current commit settings
-bw config commit --enabled              # Enable commit phase globally
-bw config commit --disabled             # Disable commit phase globally
-bw config commit --branch current       # Commit to current branch
-bw config commit --branch other --branch-name main  # Commit to specific branch
-```
+This creates the database, settings file, logs directory, and copies prompt templates to `{data}/prompts/` for user modification.
 
 ### Project Management
 
 ```bash
 bw project create <name>                          # Create a project
-bw project create <name> -d "desc"                # With description
-bw project create <name> -v mvp                   # Set version (poc, mvp, v1, v1.1, v2)
-bw project create <name> -p 3                     # Set priority (1-10, lower = higher)
-bw project create <name> --codedir /path/to/code  # Set default code directory
-bw project create <name> --prompt "Use type hints and docstrings"  # Project-level guidelines
-bw project create <name> --claude-md /path/to/claude.md  # Project-specific instructions
-
-# Commit phase overrides (project-level)
-bw project create <name> --commit                 # Enable commit phase for this project
-bw project create <name> --no-commit              # Disable commit phase for this project
-bw project create <name> --commit-branch current  # Use current branch
-bw project create <name> --commit-branch other --commit-branch-name develop  # Use specific branch
-
-bw project list                       # List all projects
-bw project list --phase dev           # Filter by phase (dev, qa, uat, prod)
-
-bw project show <name|id>             # Show project details
-bw project delete <name|id>           # Delete project (and all requests)
-bw project delete <name> --force      # Skip confirmation
+bw project create <name> -d "description"         # With description
+bw project create <name> -c /path/to/code         # Set code directory
+bw project list                                   # List all projects
+bw project list --phase build                     # Filter by phase
+bw project show <id>                              # Show project details
+bw project edit <id> --name "new name"            # Edit project
+bw project delete <id>                            # Delete project
 ```
 
-### Request Management
+### Interviews (Define Phase)
 
 ```bash
-bw request create <project> -n "Name" -m "Prompt"    # Create request
-bw request create <project> -n "Fix bug" -m "..." -t bug_fix
-bw request create <project> -n "Add feature" -m "..." --priority 2
-bw request create <project> -n "Feature" -m "..." --codedir /custom/path
-
-# Commit phase overrides (request-level)
-bw request create <project> -n "Feature" -m "..." --commit  # Force commit for this request
-bw request create <project> -n "Feature" -m "..." --no-commit  # Skip commit for this request
-bw request create <project> -n "Feature" -m "..." --commit-branch feature-branch  # Custom branch
-
-bw request list                       # List all requests
-bw request list --project myapp       # Filter by project
-bw request list --status wip          # Filter by status (tbd, wip, done, err, tmout)
-bw request list --phase dev           # Filter by phase
-
-bw request show <id>                  # Show request details
-bw request update <id> --status wip   # Update status
-bw request update <id> --phase dev    # Update phase
-bw request delete <id>                # Delete request
+bw interview start <project_id> --type business_owner       # Start BA interview
+bw interview start <project_id> --type enterprise_architect  # Start EA interview
+bw interview list                                            # List all interviews
+bw interview show <id>                                       # Show transcript
 ```
 
-### Daemon Control
+Interviews are best conducted through the web UI. Creating a new project from the web UI automatically starts a Business Architect interview.
+
+### Agent Management
 
 ```bash
-bw loop start                    # Start daemon (background)
-bw loop start --foreground       # Start in foreground (see output)
-bw loop start --foreground -d    # Foreground with debug logging
-bw loop start --poll 60          # Custom poll interval (seconds)
-bw loop start --log logs/bw.log  # Custom log file
-
-bw loop stop                     # Stop the daemon
-bw loop status                   # Check if daemon is running
+bw agent list                        # List all agents
+bw agent list --project <id>         # Filter by project
+bw agent list --status working       # Filter by status
+bw agent show <id>                   # Show agent details
+bw agent message <id> "text"         # Send message to agent
+bw agent message <id> "text" --urgent  # Send urgent (interrupt) message
+bw agent pause <id>                  # Pause agent
+bw agent resume <id>                 # Resume agent
+bw agent kill <id>                   # Terminate agent
 ```
 
-Logs are written to `logs/{loopname}_{today}.log` by default (e.g., `logs/bwloop_2026-01-21.log`).
-
-### Status & Web UI
+### Build Management
 
 ```bash
-bw status                        # Show system status
-bw web                           # Start web UI (http://127.0.0.1:5000)
-bw web --port 8080               # Custom port
-bw web --host 0.0.0.0 --debug    # Public access with debug mode
+bw build status <project_id>     # Show build progress
+bw build start <project_id>      # Start build phase
+bw build pause <project_id>      # Pause build
+bw build resume <project_id>     # Resume build
 ```
 
-## How It Works
-
-### Request Phases
-
-Requests progress through these phases automatically:
-
-| Phase | Description | Tools Available |
-|-------|-------------|-----------------|
-| `plan` | Analyze requirements, create implementation plan | Read, Glob, Grep |
-| `dev` | Implement the changes | Read, Write, Edit, Bash, Glob, Grep |
-| `test` | Run tests, verify quality | Read, Bash, Glob, Grep |
-| `deploy` | Deploy to target environment (skipped for local-only) | Bash |
-| `verify` | Verify deployment success (skipped for local-only) | Read, Bash, WebFetch, Glob, Grep |
-| `document` | Update documentation | Read, Write |
-| `commit` | Create git commit with AI-generated message (optional) | Bash, Read, Grep |
-| `complete` | Request finished | - |
-
-**Note**: The `deploy` and `verify` phases are automatically skipped for local-only infrastructure. The `commit` phase can be enabled/disabled globally, per-project, or per-request.
-
-### Request Statuses
-
-| Status | Code | Description |
-|--------|------|-------------|
-| Pending | `tbd` | Waiting to be processed |
-| In Progress | `wip` | Currently being processed |
-| Done | `done` | Completed successfully |
-| Error | `err` | Failed with error |
-| Timeout | `tmout` | Exceeded time limit |
-
-### Request Types
-
-- `new_feature` - New functionality
-- `bug_fix` - Fix for existing bug
-- `enhancement` - Improvement to existing feature
-
-### Commit Phase
-
-The commit phase automatically creates git commits with AI-generated commit messages:
-
-**Features**:
-- Analyzes changes with `git status` and `git diff`
-- Generates meaningful commit messages following best practices
-- Supports current branch or specific target branch
-- Pushes to remote automatically
-- Never fails the request (errors logged as warnings)
-
-**Configuration**:
-```bash
-# Global settings
-bw config commit --enabled --branch current
-
-# Project-level override
-bw project create myapp --commit-branch other --commit-branch-name develop
-
-# Request-level override
-bw request create myapp -n "Feature" -m "..." --commit-branch feature-x
-```
-
-**Branch Modes**:
-- `current`: Commit to whatever branch is currently checked out
-- `other`: Commit to a specific named branch (creates if needed)
-
-### Project Customization
-
-**Project Prompt**:
-Add default instructions that apply to all requests in a project:
+### System
 
 ```bash
-bw project create myapp --prompt "Always use type hints and write docstrings"
+bw system status                     # Show orchestrator status + stats
+bw system start <project_id>         # Start orchestrator (daemon)
+bw system start <project_id> -f      # Start orchestrator (foreground)
+bw system stop                       # Stop orchestrator
+bw system config                     # Show all settings
+bw system config --model claude-sonnet-4-5    # Change model
+bw system config --max-agents 10     # Change agent ceiling
 ```
 
-**Claude.md Integration**:
-Link to a project's `claude.md` file for detailed project-specific instructions:
+### Web UI
 
 ```bash
-bw project create myapp --claude-md /path/to/myapp/claude.md
+bw web start                         # Start web UI (http://127.0.0.1:5000)
+bw web start --port 8080             # Custom port
+bw web start --host 0.0.0.0 --debug  # Public access with debug mode
+bw web status                        # Show configured host/port
 ```
-
-The content is appended to the system prompt for every request in that project.
-
-### Editable Prompts
-
-Phase templates are stored in `data/prompts/phases/` and can be edited directly:
-
-```bash
-# Edit the dev phase prompt
-vim data/prompts/phases/dev.md
-
-# Edit the system prompt
-vim data/prompts/system.md
-```
-
-Changes take effect immediately - no restart required. Templates use Python string formatting with variables like `{project_name}`, `{request_name}`, `{code_dir}`, etc.
-
-### Rate Limit Handling
-
-BentWookie automatically handles API rate limits:
-
-- Detects rate limit errors (429, "too many requests", etc.)
-- Keeps request as `tbd` so it gets retried (not marked as `err`)
-- Pauses daemon for 60 seconds before retrying
-- Logs warnings instead of errors for rate limits
 
 ## Web UI
 
-The web interface provides:
+The web UI provides three main pages plus supporting views:
 
-- **Dashboard**: Overview of projects, requests, and status counts
-- **Projects**: Create, view, edit, and manage projects with full configuration
-- **Requests**: Create, filter, and update requests with commit overrides
-- **System**: Daemon status and system health with auto-refresh every 3 seconds
+| Page | URL | Description |
+|------|-----|-------------|
+| **Workspace** | `/workspace` | Split-panel: hierarchy tree (left) + detail view (right). Project selector, service creation, progress tracking. |
+| **Agent Swarm** | `/agents` | Split-panel: agent tree by role (left) + queue log & terminal (right). Spawn, terminate, rename, and configure agents. |
+| **Settings** | `/settings` | Global settings, per-agent-type overrides, and feature toggles. |
 
-Access at `http://127.0.0.1:5000` after running `bw web`.
+Additional views: Dashboard (`/`), Project View (`/projects/<id>`), Interview Chat (`/interviews/<id>`), Build Progress, Messages.
 
-### Custom Port
+The **agent sub-header** spans all pages showing live counts for all 5 agent types with quick-spawn buttons. An **EA Chat** slideover panel is accessible from any page via the "EA" button in the nav bar.
 
-```bash
-bw web                    # Default port 5000
-bw web --port 8080        # Custom port
-bw web --host 0.0.0.0     # Allow external access
+All pages update in real-time via Server-Sent Events (SSE).
+
+## AI Agent Prompt System
+
+All AI agent prompts are built from `.md` template files using a simple `{variable}` substitution system. Templates are loaded by `load_prompt(name, **kwargs)` which:
+
+1. Checks `{data}/prompts/{name}.md` first (user-modifiable copy)
+2. Falls back to the package directory `src/bentwookie/agents/prompts/{name}.md`
+
+Run `bw init` to copy all templates to your data directory. Edit the copies freely — they take priority over the built-in versions.
+
+### Prompt Assembly
+
+Agent system prompts are assembled from multiple templates concatenated together:
+
 ```
+┌─────────────────────────────┐
+│  all_startup_header.md      │  ← Project context (all agents)
+├─────────────────────────────┤
+│  {role}_startup.md          │  ← Role-specific instructions (ea/ba/se/ca/ta)
+├─────────────────────────────┤
+│  [component info]           │  ← Injected at runtime if agent has assigned component
+├─────────────────────────────┤
+│  all_startup_footer.md      │  ← Operational constraints (all agents)
+└─────────────────────────────┘
+```
+
+Build task prompts use a separate template:
+
+```
+┌─────────────────────────────┐
+│  all_build_task.md          │  ← Task type, component spec, connections, tests
+└─────────────────────────────┘
+```
+
+### Template Reference
+
+#### Shared Templates (all agents)
+
+| Template | Purpose | Variables |
+|----------|---------|-----------|
+| `all_startup_header.md` | Project context header for all agent startups | `{project_name}`, `{project_desc}` |
+| `all_startup_footer.md` | Operational constraints footer for all agent startups | `{timeout_minutes}` |
+| `all_build_task.md` | Build task assignment prompt | `{task_type}`, `{cmp_name}`, `{cmp_desc}`, `{cmp_spec}`, `{conn_section}`, `{test_section}`, `{role_name}` |
+
+#### Role Startup Templates (no variables — static role descriptions)
+
+| Template | Agent Role |
+|----------|-----------|
+| `ea_startup.md` | Enterprise Architect |
+| `ba_startup.md` | Business Architect |
+| `se_startup.md` | Service Engineer |
+| `ca_startup.md` | Coding Agent |
+| `ta_startup.md` | Testing Agent |
+
+#### Interview Templates
+
+| Template | Purpose | Variables |
+|----------|---------|-----------|
+| `ba_interview01_intro.md` | Business Architect interview system prompt | `{project_name}`, `{project_desc}` |
+| `ba_interview02_summary.md` | BA interview completion/summary prompt | *(none)* |
+| `ea_interview01_intro.md` | Enterprise Architect interview system prompt | `{project_name}`, `{project_desc}`, `{bo_transcript_section}` |
+| `ea_interview02_summary.md` | EA interview completion/summary prompt | *(none)* |
+
+#### Rework & Escalation Templates
+
+| Template | Purpose | Variables |
+|----------|---------|-----------|
+| `ca_rework_notify.md` | Notify Service Engineer of Coding Agent failure | `{cmp_name}`, `{task_id}`, `{error}` |
+| `se_rework_local.md` | Authorize Service Engineer for local fix | `{cmp_name}`, `{task_id}`, `{error}` |
+| `ea_escalation_notify.md` | Escalate to Architect when SE can't fix | `{cmp_name}`, `{task_id}`, `{error}` |
+| `ea_rework_structural.md` | Notify Architect of structural rework needed | `{cmp_name}`, `{task_id}`, `{error}` |
+
+### Variable Reference
+
+Every `{variable}` in a prompt template is substituted at runtime. Here is where each value originates and how to influence it:
+
+| Variable | Source | DB Table.Column | How to Modify |
+|----------|--------|-----------------|---------------|
+| `{project_name}` | Project record | `project.prjname` | Edit via Web UI (Workspace > Edit Project) or `bw project edit <id> --name "..."` |
+| `{project_desc}` | Project record | `project.prjdesc` | Edit via Web UI or `bw project edit <id> --desc "..."` |
+| `{timeout_minutes}` | Settings cascade | `data/settings.json` → `agent_timeout` | Settings page or `bw system config --agent-timeout 45` |
+| `{bo_transcript_section}` | Computed | `interview` + `interview_message` tables | Conduct the Business Architect interview — transcript is built from all messages |
+| `{task_type}` | Build task record | `build_task.bttype` | Set during Design phase (values: Implement, Assemble, Integrate, Test) |
+| `{cmp_name}` | Component record | `component.cmpname` | Edit component name via Web UI or during Define phase |
+| `{cmp_desc}` | Component record | `component.cmpdesc` | Edit component description in Web UI |
+| `{cmp_spec}` | Component record | `component.cmpspec` | Generated during Design phase by the Architect |
+| `{conn_section}` | Computed | `connection_map` table | Built from connection map entries; connections defined during Design phase |
+| `{test_section}` | Computed | `test_spec` table | Built from test specs; specs generated during Validate phase |
+| `{role_name}` | Computed | Derived from `build_task.bttype` | Mapped from task type: implement→"coding agent", assemble/integrate→"service engineer", test→"testing agent" |
+| `{task_id}` | Build task record | `build_task.btid` | Auto-assigned database ID |
+| `{error}` | Runtime | Agent output buffer | Error message from a failed agent (detected via `TASK_FAILED:` marker in output) |
+
+**Missing variable safety**: If a variable is not provided, it renders literally as `{variable_name}` in the output (no crash). This is useful for debugging templates.
+
+### Customization Examples
+
+**Change what the Enterprise Architect knows about its role:**
+```bash
+# Edit the EA startup prompt
+nano data/prompts/ea_startup.md
+```
+
+**Adjust the build task instructions for all agents:**
+```bash
+# Edit the shared build task template
+nano data/prompts/all_build_task.md
+```
+
+**Add a new variable to a template:**
+1. Add `{my_variable}` to the `.md` template
+2. Find the corresponding `load_prompt()` call in the Python code
+3. Pass the new keyword argument: `load_prompt("template_name", my_variable="value")`
+
+## Settings
+
+Settings are stored in `{data}/settings.json` and configurable via the web UI Settings page:
+
+```json
+{
+  "auth_mode": "max",
+  "model": "claude-opus-4-5",
+  "max_concurrent_agents": 5,
+  "agent_timeout": 30,
+  "poll_interval": 30,
+  "voice_enabled": true,
+  "sse_enabled": true,
+  "web_host": "127.0.0.1",
+  "web_port": 5000,
+  "max_enterprise_architect": 1,
+  "max_business_architect": 1,
+  "max_service_engineer": 5,
+  "max_coding_agent": 10,
+  "max_testing_agent": 5
+}
+```
+
+### Hierarchical Settings Cascade
+
+Settings resolve in order: **Individual Agent > Agent Type > Global**
+
+- Set a global default model for all agents
+- Override at the agent-type level (e.g., all Coding Agents use Sonnet)
+- Override for a specific agent instance
+
+Per-type overrides are set on the Settings page. Per-agent overrides are set on the Agent Swarm page (select agent > Settings tab).
 
 ## Database Schema
 
-BentWookie uses SQLite with four main tables:
+BentWookie uses SQLite with 21 tables:
 
 ```
-project            - Projects container
-├── request        - Development requests (linked to project)
-├── infrastructure - Infrastructure config (compute, storage, etc.)
-└── learning       - Project learnings/notes
+project              - Top-level projects (name, desc, phase, priority, code dir)
+component            - 4-level hierarchy (self-referencing via cmpparentid)
+connection_map       - Peer connections between components
+dependency           - Build-order DAG edges
+agent                - Agent instances (role, status, name, shell PID)
+agent_message        - Inter-agent message queue (normal + urgent)
+agent_output         - Agent terminal output chunks (for live streaming)
+agent_settings       - Per-agent and per-type setting overrides
+agent_context        - Saved agent context for work queue transitions
+interview            - Interview sessions (BA + EA)
+interview_message    - Individual messages within interviews
+test_spec            - Test specifications per component
+test_result          - Test execution results
+build_task           - Work items assigned to agents
+build_plan           - Design phase plans per component
+design_amendment     - Rework protocol log (append-only)
+traceability         - Business goals to component mapping
+learning             - Accumulated learnings
+daemon_state         - Orchestrator singleton status
+document             - Generated artifacts
+techstack_catalog    - Searchable tech stack catalog (~387 entries)
 ```
-
-### Key Fields
-
-**Project**:
-- Core: `prjid`, `prjname`, `prjversion`, `prjpriority`, `prjphase`, `prjdesc`
-- Customization: `prjprompt`, `prjclaudemd`, `prjcodedir`
-- Commit Config: `prjcommitenabled`, `prjcommitbranchmode`, `prjcommitbranchname`
-
-**Request**:
-- Core: `reqid`, `prjid`, `reqname`, `reqtype`, `reqstatus`, `reqphase`, `reqprompt`, `reqpriority`
-- Paths: `reqcodedir`, `reqplanpath`, `reqtestplanpath`, `reqdocpath`
-- Commit Config: `reqcommitenabled`, `reqcommitbranch`
-- Testing: `reqtestretries`, `reqerror`
-
-**Infrastructure**: `infid`, `prjid`, `inftype`, `infprovider`, `infval`, `infnote`
-
-**Request Infrastructure** (overrides): `rinfid`, `reqid`, `inftype`, `infprovider`, `infval`, `infnote`
-
-**Learning**: `lrnid`, `prjid`, `lrndesc` (prjid=-1 for global learnings)
 
 ## Project Structure
 
 ```
 src/bentwookie/
-├── __init__.py           # Package exports
-├── cli.py                # CLI commands (Click)
-├── constants.py          # Configuration constants
-├── models.py             # Data models (Project, Request, etc.)
-├── settings.py           # Settings management (auth mode, etc.)
-├── logging_util.py       # Logging configuration
+├── __init__.py            # Package exports
+├── cli.py                 # CLI commands (Click)
+├── constants.py           # Constants (phases, levels, roles, statuses, name generator)
+├── models.py              # Dataclasses with from_dict/to_dict
+├── settings.py            # Settings management with hierarchical cascade
+├── logging_util.py        # Logging configuration
+├── exceptions.py          # Exception hierarchy
+├── agents/
+│   ├── __init__.py        # Agent engine exports
+│   ├── manager.py         # Agent subprocess lifecycle (pty + spawn)
+│   ├── message_queue.py   # DB-backed message queue with urgent priority
+│   ├── orchestrator.py    # Main event loop, DAG work assignment, rework protocol
+│   ├── interview.py       # Conversational interview engine
+│   └── prompts/           # AI prompt templates (.md files)
+│       ├── loader.py      # Template loader (checks user dir first)
+│       ├── all_startup_header.md
+│       ├── all_startup_footer.md
+│       ├── all_build_task.md
+│       ├── ea_startup.md / ba_startup.md / se_startup.md / ca_startup.md / ta_startup.md
+│       ├── ba_interview01_intro.md / ba_interview02_summary.md
+│       ├── ea_interview01_intro.md / ea_interview02_summary.md
+│       └── ca_rework_notify.md / se_rework_local.md / ea_escalation_notify.md / ea_rework_structural.md
+├── templates/
+│   └── techstack_catalog.txt  # Tech stack seed data
 ├── db/
-│   ├── __init__.py       # Database module exports
-│   ├── connection.py     # SQLite connection manager
-│   ├── queries.py        # CRUD operations
-│   └── schema.sql        # Database schema
-├── loop/
-│   ├── __init__.py       # Loop module exports
-│   ├── daemon.py         # Background daemon
-│   ├── processor.py      # Request processor (Claude SDK)
-│   └── phases.py         # Phase-specific logic
-├── web/
-│   ├── __init__.py       # Web module exports
-│   ├── app.py            # Flask application
-│   ├── templates/        # Jinja2 HTML templates
-│   └── static/           # CSS styles
-└── templates/
-    └── phases/           # Bundled phase templates (fallback)
-        ├── plan.md
-        ├── dev.md
-        ├── test.md
-        ├── deploy.md
-        ├── verify.md
-        ├── document.md
-        ├── commit.md
-        └── system.md
+│   ├── __init__.py        # Database module exports
+│   ├── connection.py      # SQLite connection manager + migrations
+│   ├── queries.py         # CRUD operations for all 21 tables
+│   └── schema_v2.sql      # Database schema
+└── web/
+    ├── app.py             # Flask application with SSE + API endpoints
+    ├── templates/
+    │   ├── base.html              # Base layout (nav, sub-header, EA chat)
+    │   ├── workspace.html         # Workspace split-panel
+    │   ├── agents.html            # Agent swarm monitor
+    │   ├── settings.html          # Settings page
+    │   ├── dashboard.html         # Mission control
+    │   ├── project_form.html      # Create/edit project
+    │   ├── project_view.html      # Project detail
+    │   ├── interview_session.html # Chat UI
+    │   └── ...                    # Additional views
+    └── static/
+        ├── style.css              # Golden Wookie theme
+        └── js/
+            ├── sse-client.js      # SSE wrapper with auto-reconnect
+            ├── agent-monitor.js   # Agent tree refresh, spawn/terminate
+            ├── agent-terminal.js  # Live terminal output
+            ├── ea-chat.js         # EA chat slideover
+            ├── hierarchy-tree.js  # Collapsible tree rendering
+            ├── detail-panel.js    # Right-panel detail loading
+            ├── interview-chat.js  # Chat UI + voice input
+            ├── folder-picker.js   # Directory browser modal
+            └── dependency-graph.js # DAG visualization
 
-data/
-├── bentwookie.db         # SQLite database
-├── settings.json         # Configuration settings
-└── prompts/              # Editable prompt templates (created by bw init)
-    ├── system.md         # System prompt template
-    └── phases/           # Phase-specific prompts
-        ├── plan.md
-        ├── dev.md
-        ├── test.md
-        ├── deploy.md
-        ├── verify.md
-        ├── document.md
-        └── commit.md
-docs/                     # Generated documentation
-logs/                     # Log files
+data/                      # Created by `bw init`
+├── bentwookie.db          # SQLite database
+├── settings.json          # Configuration
+├── docs/                  # Generated documents
+└── prompts/               # User-modifiable prompt templates (copied from package)
 
-**Note**: Templates in `data/prompts/` take precedence over bundled templates and can be edited without restarting. Changes take effect immediately.
-```
-
-## Python API
-
-```python
-from bentwookie import (
-    init_db,
-    create_project,
-    create_request,
-    list_requests,
-)
-
-# Initialize
-init_db()
-
-# Create project
-prjid = create_project("myapp", prjdesc="My application")
-
-# Create request
-reqid = create_request(
-    prjid=prjid,
-    reqname="Add feature",
-    reqprompt="Implement user dashboard",
-    reqtype="new_feature",
-)
-
-# List pending requests
-for req in list_requests(status="tbd"):
-    print(f"{req['reqid']}: {req['reqname']}")
+logs/                      # Log files
 ```
 
 ## Development
@@ -473,124 +459,6 @@ ruff check src/
 # Run type checker
 mypy src/bentwookie/
 ```
-
-## Configuration
-
-### Settings File
-
-Settings are stored in `data/settings.json`:
-
-```json
-{
-  "auth_mode": "max",
-  "model": "claude-opus-4-5",
-  "max_turns": 50,
-  "max_iterations": 5,
-  "poll_interval": 30,
-  "commit_enabled": true,
-  "commit_branch_mode": "current",
-  "commit_branch_name": null,
-  "doc_retention_days": 30
-}
-```
-
-### Configuration Hierarchy
-
-BentWookie uses a three-level configuration hierarchy for commit settings:
-
-1. **Request-level** (highest priority) - Set on individual requests
-2. **Project-level** (middle priority) - Set on projects
-3. **Global** (lowest priority) - System-wide defaults in `settings.json`
-
-Example:
-- Global: Commit enabled, use current branch
-- Project "myapp": Commit to "develop" branch (overrides global)
-- Request #42: Commit disabled (overrides project and global)
-
-This allows flexible control: most requests use defaults, but you can customize per-project or per-request as needed.
-
-### Log Path Placeholders
-
-The default log path is `logs/{loopname}_{today}.log`. You can customize it:
-
-```bash
-bw loop start --log "logs/{loopname}_{today}.log"
-```
-
-Available placeholders:
-- `{today}` - Current date (YYYY-MM-DD)
-- `{loopname}` - Loop identifier
-- `{datetime}` - Full datetime stamp
-
-## Troubleshooting
-
-### "No initialized BentWookie workspace found"
-
-BentWookie looks for a workspace in:
-1. Current directory
-2. Parent directory
-3. Immediate child directories
-
-If you see this error:
-```bash
-cd /path/to/your/bentwookie/workspace
-bw loop start
-```
-
-Or initialize a new workspace:
-```bash
-bw init
-```
-
-### Daemon says "already running" but isn't
-
-If the daemon crashed or was killed, the PID file may be stale:
-
-```bash
-rm data/bentwookie.pid
-bw loop start --foreground --debug
-```
-
-### Debug mode
-
-Use `--debug` (or `-d`) for verbose logging:
-
-```bash
-bw loop start --foreground --debug
-```
-
-Check the log file at `logs/bwloop_YYYY-MM-DD.log` for detailed output.
-
-### Commit phase not running
-
-Check if it's enabled:
-```bash
-bw config commit  # Show current settings
-```
-
-Enable it globally:
-```bash
-bw config commit --enabled
-```
-
-Or enable for specific project/request:
-```bash
-bw project create myapp --commit
-bw request create myapp -n "Feature" -m "..." --commit
-```
-
-## Migration from v1
-
-BentWookie v2 replaces the file-based task system with SQLite:
-
-| v1 | v2 |
-|----|-----|
-| Markdown task files | SQLite database |
-| Stage directories (1plan, 2dev...) | Phase field on request |
-| `--init`, `--plan`, `--next_prompt` | `init`, `project`, `request`, `loop` commands |
-| Manual stage movement | Automatic phase progression |
-
-The v1 modules (`core.py`, `config.py`, `wizard.py`) are preserved for backwards compatibility.
 
 ## License
 

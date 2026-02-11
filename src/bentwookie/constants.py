@@ -1,145 +1,336 @@
-"""Constants for BentWookie package."""
+"""Constants for BentWookie V2 package."""
 
 # =============================================================================
-# Request Phases (v2)
+# Project Phases (V2 workflow)
 # =============================================================================
 
-# Phase names in order of progression
-PHASES = ["plan", "dev", "test", "deploy", "verify", "document", "commit", "complete"]
+PHASE_DEFINE = "define"
+PHASE_DESIGN = "design"
+PHASE_VALIDATE = "validate"
+PHASE_BUILD = "build"
+PHASE_COMPLETE = "complete"
 
-# Phase progression mapping (phase -> order index)
+PHASES = [PHASE_DEFINE, PHASE_DESIGN, PHASE_VALIDATE, PHASE_BUILD, PHASE_COMPLETE]
+
 PHASE_ORDER = {
-    "plan": 0,
-    "dev": 1,
-    "test": 2,
-    "deploy": 3,
-    "verify": 4,
-    "document": 5,
-    "commit": 6,
-    "complete": 7,
+    "define": 0,
+    "design": 1,
+    "validate": 2,
+    "build": 3,
+    "complete": 4,
 }
 
-# Next phase mapping
 NEXT_PHASE = {
-    "plan": "dev",
-    "dev": "test",
-    "test": "deploy",
-    "deploy": "verify",
-    "verify": "document",
-    "document": "commit",
-    "commit": "complete",
+    "define": "design",
+    "design": "validate",
+    "validate": "build",
+    "build": "complete",
     "complete": None,
 }
 
-# Phase display names
 PHASE_NAMES = {
-    "plan": "Planning",
-    "dev": "Development",
-    "test": "Testing",
-    "deploy": "Deployment",
-    "verify": "Verification",
-    "document": "Documentation",
-    "commit": "Commit",
+    "define": "Define",
+    "design": "Design",
+    "validate": "Validate",
+    "build": "Build",
     "complete": "Complete",
 }
 
 # =============================================================================
-# Request Statuses (v2)
+# Component Levels (4-level hierarchy)
 # =============================================================================
 
-# Status values (v2 - short codes)
-STATUS_TBD = "tbd"        # To be done (pending)
-STATUS_WIP = "wip"        # Work in progress
-STATUS_DONE = "done"      # Completed successfully
-STATUS_ERR = "err"        # Error occurred
-STATUS_TMOUT = "tmout"    # Timeout
+LEVEL_PROJECT = "project"
+LEVEL_SERVICE = "service"
+LEVEL_COMPONENT = "component"
+LEVEL_FUNCTION = "function"
 
-V2_STATUSES = [STATUS_TBD, STATUS_WIP, STATUS_DONE, STATUS_ERR, STATUS_TMOUT]
-
-# v1 compatible status values (for backwards compatibility with core.py)
-STATUS_NOT_STARTED = "Not Started"
-STATUS_PLANNING = "Planning"
-STATUS_READY = "Ready"
-STATUS_IN_PROGRESS = "In Progress"
-STATUS_COMPLETE = "Complete"
-
-VALID_STATUSES = [
-    STATUS_NOT_STARTED,
-    STATUS_PLANNING,
-    STATUS_READY,
-    STATUS_IN_PROGRESS,
-    STATUS_COMPLETE,
+COMPONENT_LEVELS = [
+    LEVEL_PROJECT,
+    LEVEL_SERVICE,
+    LEVEL_COMPONENT,
+    LEVEL_FUNCTION,
 ]
 
-# Status display names
-STATUS_NAMES = {
-    "tbd": "Pending",
-    "wip": "In Progress",
-    "done": "Done",
-    "err": "Error",
-    "tmout": "Timeout",
+LEVEL_NAMES = {
+    "project": "Project",
+    "service": "Service",
+    "component": "Component",
+    "function": "Function",
+}
+
+LEVEL_ORDER = {
+    "project": 0,
+    "service": 1,
+    "component": 2,
+    "function": 3,
 }
 
 # =============================================================================
-# Request Types (v2)
+# Agent Roles
 # =============================================================================
 
-TYPE_NEW_FEATURE = "new_feature"
-TYPE_BUG_FIX = "bug_fix"
-TYPE_ENHANCEMENT = "enhancement"
+ROLE_ENTERPRISE_ARCHITECT = "enterprise_architect"
+ROLE_BUSINESS_ARCHITECT = "business_architect"
+ROLE_SERVICE_ENGINEER = "service_engineer"
+ROLE_CODING_AGENT = "coding_agent"
+ROLE_TESTING_AGENT = "testing_agent"
 
-VALID_REQUEST_TYPES = [TYPE_NEW_FEATURE, TYPE_BUG_FIX, TYPE_ENHANCEMENT]
+# Legacy alias for backward compatibility with interview system
+ROLE_BUSINESS_OWNER = "business_owner"
 
-TYPE_NAMES = {
-    "new_feature": "New Feature",
-    "bug_fix": "Bug Fix",
-    "enhancement": "Enhancement",
+AGENT_ROLES = [
+    ROLE_ENTERPRISE_ARCHITECT,
+    ROLE_BUSINESS_ARCHITECT,
+    ROLE_SERVICE_ENGINEER,
+    ROLE_CODING_AGENT,
+    ROLE_TESTING_AGENT,
+]
+
+ROLE_NAMES = {
+    "enterprise_architect": "Enterprise Architect",
+    "business_architect": "Business Architect",
+    "service_engineer": "Service Engineer",
+    "coding_agent": "Coding Agent",
+    "testing_agent": "Testing Agent",
+    "business_owner": "Business Owner",  # legacy
+}
+
+ROLE_ABBREVIATIONS = {
+    "enterprise_architect": "ea",
+    "business_architect": "ba",
+    "service_engineer": "se",
+    "coding_agent": "ca",
+    "testing_agent": "ta",
+    "business_owner": "ba",  # legacy
 }
 
 # =============================================================================
-# Project Versions
+# Agent Statuses
 # =============================================================================
 
-VERSION_POC = "poc"
-VERSION_MVP = "mvp"
-VERSION_V1 = "v1"
-VERSION_V1_1 = "v1.1"
-VERSION_V2 = "v2"
+AGENT_STATUS_IDLE = "idle"
+AGENT_STATUS_WORKING = "working"
+AGENT_STATUS_WAITING = "waiting"
+AGENT_STATUS_INTERRUPTED = "interrupted"
+AGENT_STATUS_TERMINATED = "terminated"
+AGENT_STATUS_ERROR = "error"
 
-VALID_VERSIONS = [VERSION_POC, VERSION_MVP, VERSION_V1, VERSION_V1_1, VERSION_V2]
+AGENT_STATUSES = [
+    AGENT_STATUS_IDLE,
+    AGENT_STATUS_WORKING,
+    AGENT_STATUS_WAITING,
+    AGENT_STATUS_INTERRUPTED,
+    AGENT_STATUS_TERMINATED,
+    AGENT_STATUS_ERROR,
+]
+
+AGENT_STATUS_NAMES = {
+    "idle": "Idle",
+    "working": "Working",
+    "waiting": "Waiting",
+    "interrupted": "Interrupted",
+    "terminated": "Terminated",
+    "error": "Error",
+}
 
 # =============================================================================
-# Project Phases
+# Component Statuses
 # =============================================================================
 
-PROJECT_PHASE_DEV = "dev"
-PROJECT_PHASE_QA = "qa"
-PROJECT_PHASE_UAT = "uat"
-PROJECT_PHASE_PROD = "prod"
+COMPONENT_STATUS_DRAFT = "draft"
+COMPONENT_STATUS_DEFINED = "defined"
+COMPONENT_STATUS_DESIGNED = "designed"
+COMPONENT_STATUS_VALIDATED = "validated"
+COMPONENT_STATUS_BUILDING = "building"
+COMPONENT_STATUS_BUILT = "built"
+COMPONENT_STATUS_TESTED = "tested"
+COMPONENT_STATUS_ERROR = "error"
 
-VALID_PROJECT_PHASES = [PROJECT_PHASE_DEV, PROJECT_PHASE_QA, PROJECT_PHASE_UAT, PROJECT_PHASE_PROD]
+COMPONENT_STATUSES = [
+    COMPONENT_STATUS_DRAFT,
+    COMPONENT_STATUS_DEFINED,
+    COMPONENT_STATUS_DESIGNED,
+    COMPONENT_STATUS_VALIDATED,
+    COMPONENT_STATUS_BUILDING,
+    COMPONENT_STATUS_BUILT,
+    COMPONENT_STATUS_TESTED,
+    COMPONENT_STATUS_ERROR,
+]
+
+COMPONENT_STATUS_NAMES = {
+    "draft": "Draft",
+    "defined": "Defined",
+    "designed": "Designed",
+    "validated": "Validated",
+    "building": "Building",
+    "built": "Built",
+    "tested": "Tested",
+    "error": "Error",
+}
 
 # =============================================================================
-# Infrastructure
+# Message Types
 # =============================================================================
 
-# Provider options
-PROVIDER_LOCAL = "local"
-PROVIDER_CONTAINER = "container"
-PROVIDER_AWS = "aws"
-PROVIDER_GCP = "gcp"
-PROVIDER_AZURE = "azure"
+MSG_TYPE_NORMAL = "normal"
+MSG_TYPE_URGENT = "urgent"
 
-VALID_PROVIDERS = [PROVIDER_LOCAL, PROVIDER_CONTAINER, PROVIDER_AWS, PROVIDER_GCP, PROVIDER_AZURE]
+MESSAGE_TYPES = [MSG_TYPE_NORMAL, MSG_TYPE_URGENT]
 
-# Infrastructure types
-INFRA_COMPUTE = "compute"
-INFRA_STORAGE = "storage"
-INFRA_QUEUE = "queue"
-INFRA_ACCESS = "access"
-INFRA_UI = "ui"
+MESSAGE_STATUS_QUEUED = "queued"
+MESSAGE_STATUS_DELIVERED = "delivered"
+MESSAGE_STATUS_READ = "read"
 
-VALID_INFRA_TYPES = [INFRA_COMPUTE, INFRA_STORAGE, INFRA_QUEUE, INFRA_ACCESS, INFRA_UI]
+MESSAGE_STATUSES = [MESSAGE_STATUS_QUEUED, MESSAGE_STATUS_DELIVERED, MESSAGE_STATUS_READ]
+
+# =============================================================================
+# Build Task Types
+# =============================================================================
+
+BUILD_TASK_IMPLEMENT = "implement"
+BUILD_TASK_ASSEMBLE = "assemble"
+BUILD_TASK_INTEGRATE = "integrate"
+BUILD_TASK_TEST = "test"
+
+BUILD_TASK_TYPES = [
+    BUILD_TASK_IMPLEMENT,
+    BUILD_TASK_ASSEMBLE,
+    BUILD_TASK_INTEGRATE,
+    BUILD_TASK_TEST,
+]
+
+BUILD_TASK_TYPE_NAMES = {
+    "implement": "Implement",
+    "assemble": "Assemble",
+    "integrate": "Integrate",
+    "test": "Test",
+}
+
+# =============================================================================
+# Build Task Statuses
+# =============================================================================
+
+BUILD_STATUS_PENDING = "pending"
+BUILD_STATUS_BLOCKED = "blocked"
+BUILD_STATUS_ASSIGNED = "assigned"
+BUILD_STATUS_IN_PROGRESS = "in_progress"
+BUILD_STATUS_COMPLETE = "complete"
+BUILD_STATUS_ERROR = "error"
+BUILD_STATUS_CANCELLED = "cancelled"
+BUILD_STATUS_REWORK = "rework"
+
+BUILD_TASK_STATUSES = [
+    BUILD_STATUS_PENDING,
+    BUILD_STATUS_BLOCKED,
+    BUILD_STATUS_ASSIGNED,
+    BUILD_STATUS_IN_PROGRESS,
+    BUILD_STATUS_COMPLETE,
+    BUILD_STATUS_ERROR,
+    BUILD_STATUS_CANCELLED,
+    BUILD_STATUS_REWORK,
+]
+
+BUILD_TASK_STATUS_NAMES = {
+    "pending": "Pending",
+    "blocked": "Blocked",
+    "assigned": "Assigned",
+    "in_progress": "In Progress",
+    "complete": "Complete",
+    "error": "Error",
+    "cancelled": "Cancelled",
+    "rework": "Rework",
+}
+
+# =============================================================================
+# Interview Types and Statuses
+# =============================================================================
+
+INTERVIEW_TYPE_BO = "business_owner"
+INTERVIEW_TYPE_EA = "enterprise_architect"
+
+INTERVIEW_TYPES = [INTERVIEW_TYPE_BO, INTERVIEW_TYPE_EA]
+
+INTERVIEW_TYPE_NAMES = {
+    "business_owner": "Business Owner",
+    "enterprise_architect": "Enterprise Architect",
+}
+
+INTERVIEW_STATUS_PENDING = "pending"
+INTERVIEW_STATUS_ACTIVE = "active"
+INTERVIEW_STATUS_COMPLETE = "complete"
+INTERVIEW_STATUS_ERROR = "error"
+
+INTERVIEW_STATUSES = [
+    INTERVIEW_STATUS_PENDING,
+    INTERVIEW_STATUS_ACTIVE,
+    INTERVIEW_STATUS_COMPLETE,
+    INTERVIEW_STATUS_ERROR,
+]
+
+# =============================================================================
+# Test Spec Types
+# =============================================================================
+
+TEST_TYPE_UNIT = "unit"
+TEST_TYPE_INTEGRATION = "integration"
+TEST_TYPE_E2E = "e2e"
+
+TEST_TYPES = [TEST_TYPE_UNIT, TEST_TYPE_INTEGRATION, TEST_TYPE_E2E]
+
+# =============================================================================
+# Daemon Statuses
+# =============================================================================
+
+DAEMON_STATUS_STOPPED = "stopped"
+DAEMON_STATUS_RUNNING = "running"
+DAEMON_STATUS_PAUSED = "paused"
+
+DAEMON_STATUSES = [DAEMON_STATUS_STOPPED, DAEMON_STATUS_RUNNING, DAEMON_STATUS_PAUSED]
+
+# =============================================================================
+# Timeouts (seconds)
+# =============================================================================
+
+TIMEOUT_DEFINE = 30 * 60        # 30 minutes
+TIMEOUT_DESIGN = 2 * 60 * 60    # 2 hours
+TIMEOUT_VALIDATE = 1 * 60 * 60  # 1 hour
+TIMEOUT_BUILD = 4 * 60 * 60     # 4 hours
+
+PHASE_TIMEOUTS = {
+    "define": TIMEOUT_DEFINE,
+    "design": TIMEOUT_DESIGN,
+    "validate": TIMEOUT_VALIDATE,
+    "build": TIMEOUT_BUILD,
+}
+
+DAEMON_POLL_INTERVAL = 30    # seconds
+DAEMON_MAX_TURNS = 50        # max Claude SDK turns per phase
+DEFAULT_MAX_AGENTS = 5       # default max concurrent agents
+DEFAULT_AGENT_TIMEOUT = 30 * 60  # 30 minutes per agent task
+
+# =============================================================================
+# Paths
+# =============================================================================
+
+DEFAULT_DB_PATH = "data/bentwookie.db"
+DEFAULT_DOCS_PATH = "data/docs"
+DEFAULT_LOGS_PATTERN = "logs/{loopname}_{today}.log"
+
+# =============================================================================
+# Claude SDK Settings
+# =============================================================================
+
+DEFAULT_MODEL = "claude-opus-4-5"
+
+VALID_MODELS = [
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4",
+    "claude-opus-4",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-opus-20240229",
+]
 
 # =============================================================================
 # Priority
@@ -150,181 +341,180 @@ PRIORITY_MAX = 10
 DEFAULT_PRIORITY = 5
 
 # =============================================================================
-# Timeouts
+# Commit Settings
 # =============================================================================
 
-# Phase timeouts in seconds
-TIMEOUT_PLAN = 30 * 60       # 30 minutes
-TIMEOUT_DEV = 4 * 60 * 60    # 4 hours
-TIMEOUT_TEST = 1 * 60 * 60   # 1 hour
-TIMEOUT_DEPLOY = 30 * 60     # 30 minutes
-TIMEOUT_VERIFY = 30 * 60     # 30 minutes
-TIMEOUT_DOCUMENT = 30 * 60   # 30 minutes
-TIMEOUT_COMMIT = 10 * 60     # 10 minutes
-
-PHASE_TIMEOUTS = {
-    "plan": TIMEOUT_PLAN,
-    "dev": TIMEOUT_DEV,
-    "test": TIMEOUT_TEST,
-    "deploy": TIMEOUT_DEPLOY,
-    "verify": TIMEOUT_VERIFY,
-    "document": TIMEOUT_DOCUMENT,
-    "commit": TIMEOUT_COMMIT,
-}
-
-# Daemon settings
-DAEMON_POLL_INTERVAL = 30    # seconds
-DAEMON_MAX_TURNS = 50        # max Claude SDK turns per phase
+VALID_COMMIT_BRANCHES = ["current", "other"]
 
 # =============================================================================
-# Paths
+# SSE Event Types
 # =============================================================================
 
-DEFAULT_DB_PATH = "data/bentwookie.db"
-DEFAULT_DOCS_PATH = "data/docs"
-DEFAULT_LOGS_PATTERN = "logs/{loopname}_{today}.log"
-DEFAULT_DOC_RETENTION_DAYS = 30  # Auto-cleanup docs older than this
+SSE_AGENT_STATUS = "agent_status"
+SSE_AGENT_OUTPUT = "agent_output"
+SSE_ACTIVITY = "activity"
+SSE_PHASE_CHANGE = "phase_change"
+SSE_BUILD_PROGRESS = "build_progress"
+SSE_MESSAGE_SENT = "message_sent"
+SSE_STATS_UPDATE = "stats_update"
 
-# =============================================================================
-# Claude SDK Settings
-# =============================================================================
-
-DEFAULT_MODEL = "claude-opus-4-5"
-DEFAULT_PERMISSION_MODE = "acceptEdits"
-
-# Valid Claude models
-VALID_MODELS = [
-    "claude-opus-4-5",
-    "claude-sonnet-4-5",
-    "claude-sonnet-4",
-    "claude-opus-4",
-    "claude-3-5-sonnet-20241022",
-    "claude-3-opus-20240229",
+SSE_EVENT_TYPES = [
+    SSE_AGENT_STATUS,
+    SSE_AGENT_OUTPUT,
+    SSE_ACTIVITY,
+    SSE_PHASE_CHANGE,
+    SSE_BUILD_PROGRESS,
+    SSE_MESSAGE_SENT,
+    SSE_STATS_UPDATE,
 ]
 
-# Tools allowed per phase
-PHASE_TOOLS = {
-    "plan": ["Read", "Glob", "Grep"],
-    "dev": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-    "test": ["Read", "Bash", "Glob", "Grep"],
-    "deploy": ["Bash"],
-    "verify": ["Read", "Bash", "WebFetch", "Glob", "Grep"],
-    "document": ["Read", "Write"],
-    "commit": ["Bash", "Read", "Grep"],  # Need Bash for git, Read/Grep for analysis
+# =============================================================================
+# Hierarchical Settings (per-type overrides)
+# =============================================================================
+
+HIERARCHICAL_SETTINGS = [
+    "model",
+    "poll_interval",
+    "agent_timeout",
+    "max_agents",
+]
+
+# =============================================================================
+# Agent Name Generator (themed names per role)
+# =============================================================================
+
+AGENT_NAME_POOL = {
+    "enterprise_architect": [
+        "Blueprint", "Vanguard", "Meridian", "Keystone", "Horizon",
+        "Pinnacle", "Compass", "Summit", "Atlas", "Foundry",
+        "Apex", "Sentinel", "Bastion", "Lighthouse", "Paragon",
+    ],
+    "business_architect": [
+        "Catalyst", "Maven", "Strategist", "Nexus", "Clarity",
+        "Visionary", "Broker", "Pathfinder", "Oracle", "Venture",
+        "Mosaic", "Prism", "Charter", "Beacon", "Synapse",
+    ],
+    "service_engineer": [
+        "Forge", "Conduit", "Piston", "Rivet", "Dynamo",
+        "Wrench", "Circuit", "Bolt", "Torque", "Anchor",
+        "Gearbox", "Pipeline", "Chassis", "Turbine", "Socket",
+    ],
+    "coding_agent": [
+        "Pixel", "Bytewise", "Sparky", "Glitch", "Neon",
+        "Cipher", "Dash", "Flux", "Blaze", "Echo",
+        "Zen", "Turbo", "Nova", "Rocket", "Qubit",
+        "Vector", "Bit", "Hex", "Nimbus", "Comet",
+    ],
+    "testing_agent": [
+        "Watchdog", "Probe", "Scanner", "Veritas", "Audit",
+        "Falcon", "Radar", "Sentry", "Inspector", "Validator",
+        "Checkmate", "Guardian", "Sweep", "Gauntlet", "Litmus",
+    ],
+}
+
+
+def generate_agent_name(role: str, existing_names: list[str] | None = None) -> str:
+    """Generate a fun, unique agent name for the given role.
+
+    Picks from the themed name pool, falling back to numbered names
+    if all pool names are taken.  Appends the role abbreviation suffix,
+    e.g. "Bastion (ea)", "Pixel (ca)".
+    """
+    import random
+
+    abbrev = ROLE_ABBREVIATIONS.get(role, "ag")
+    existing = set(existing_names or [])
+    pool = AGENT_NAME_POOL.get(role, AGENT_NAME_POOL["coding_agent"])
+
+    # Build candidate names with suffix
+    available = [f"{n} ({abbrev})" for n in pool if f"{n} ({abbrev})" not in existing]
+    if available:
+        return random.choice(available)
+
+    # All pool names taken; add a number suffix to a random pool name
+    base = random.choice(pool)
+    counter = 2
+    while f"{base}-{counter} ({abbrev})" in existing:
+        counter += 1
+    return f"{base}-{counter} ({abbrev})"
+
+
+# =============================================================================
+# Task Queue Statuses
+# =============================================================================
+
+TQ_STATUS_PENDING = "pending"
+TQ_STATUS_ASSIGNED = "assigned"
+TQ_STATUS_IN_PROGRESS = "in_progress"
+TQ_STATUS_COMPLETE = "complete"
+TQ_STATUS_FAILED = "failed"
+TQ_STATUS_EXPIRED = "expired"
+TQ_STATUS_CANCELLED = "cancelled"
+
+TQ_STATUSES = [
+    TQ_STATUS_PENDING,
+    TQ_STATUS_ASSIGNED,
+    TQ_STATUS_IN_PROGRESS,
+    TQ_STATUS_COMPLETE,
+    TQ_STATUS_FAILED,
+    TQ_STATUS_EXPIRED,
+    TQ_STATUS_CANCELLED,
+]
+
+# Task Request Types
+TQ_REQUEST_TASK = "task"
+TQ_REQUEST_COLLAB = "collab"
+
+TQ_REQUEST_TYPES = [TQ_REQUEST_TASK, TQ_REQUEST_COLLAB]
+
+# =============================================================================
+# Context Clearing Scopes
+# =============================================================================
+
+CONTEXT_SCOPE_PROJECT = "project"
+CONTEXT_SCOPE_SERVICE = "service"
+CONTEXT_SCOPE_COMPONENT = "component"
+CONTEXT_SCOPE_REQUEST = "request"
+
+ROLE_CONTEXT_SCOPE: dict[str, str] = {
+    "enterprise_architect": CONTEXT_SCOPE_PROJECT,
+    "business_architect": CONTEXT_SCOPE_PROJECT,
+    "business_owner": CONTEXT_SCOPE_PROJECT,
+    "service_engineer": CONTEXT_SCOPE_SERVICE,
+    "coding_agent": CONTEXT_SCOPE_COMPONENT,
+    "testing_agent": CONTEXT_SCOPE_REQUEST,
+}
+
+# Abbreviation-to-role mapping (reverse of ROLE_ABBREVIATIONS, excluding legacy)
+ABBREV_TO_ROLE: dict[str, str] = {
+    v: k for k, v in ROLE_ABBREVIATIONS.items() if k != "business_owner"
 }
 
 # =============================================================================
-# Commit Phase Options
+# Safe Word
 # =============================================================================
 
-# Commit branch modes
-COMMIT_BRANCH_CURRENT = "current"  # Commit to current branch
-COMMIT_BRANCH_OTHER = "other"      # Commit to specific branch
-VALID_COMMIT_BRANCHES = [COMMIT_BRANCH_CURRENT, COMMIT_BRANCH_OTHER]
+DEFAULT_SAFE_WORD = "KAMILI"
 
 # =============================================================================
-# Legacy Constants (kept for backwards compatibility during migration)
+# Workflow
 # =============================================================================
 
-# Old stage names (deprecated)
-STAGES = ["1plan", "2dev", "3test", "4deploy", "5validate", "9done"]
+WORKFLOW_TOTAL_STEPS = 27
 
-STAGE_ORDER = {
-    "1plan": 0,
-    "2dev": 1,
-    "3test": 2,
-    "4deploy": 3,
-    "5validate": 4,
-    "9done": 5,
-}
+# =============================================================================
+# SSE Event Types (task queue additions)
+# =============================================================================
 
-NEXT_STAGE = {
-    "1plan": "2dev",
-    "2dev": "3test",
-    "3test": "4deploy",
-    "4deploy": "5validate",
-    "5validate": "9done",
-    "9done": None,
-}
+SSE_TASK_QUEUED = "task_queued"
+SSE_TASK_ASSIGNED = "task_assigned"
+SSE_TASK_COMPLETE = "task_complete"
+SSE_TASK_FAILED = "task_failed"
+SSE_PROGRESS_UPDATE = "progress_update"
 
-# Old change types (deprecated)
-CHANGE_TYPE_NEW = "New Feature"
-CHANGE_TYPE_ENHANCEMENT = "Feature Enhancement"
-CHANGE_TYPE_BUGFIX = "Bug-Fix"
-
-VALID_CHANGE_TYPES = [CHANGE_TYPE_NEW, CHANGE_TYPE_ENHANCEMENT, CHANGE_TYPE_BUGFIX]
-
-# Old project phases (deprecated)
-PROJECT_PHASES = ["MVP", "V1.0", "POC", "V2.0", "Maintenance"]
-
-# Environment variable keys (used by config.py)
-ENV_KEYS = {
-    "LLM_PROVIDER": "BW_LLM_PROVIDER",
-    "LLM_MODEL": "BW_LLM_MODEL",
-    "LLM_API_KEY": "BW_LLM_API_KEY",
-    "TASKS_PATH": "BW_TASKS_PATH",
-    "LOGS_PATH": "BW_LOGS_PATH",
-    "ENV_PATH": "BW_ENV_PATH",
-}
-
-# File patterns (used by core.py, config.py)
-TASK_FILE_EXTENSION = ".md"
-BACKUP_EXTENSION = ".bkup"
-RESOURCES_DIR = ".resources"
-GLOBAL_DIR = "global"
-LOGS_DIR = "logs"
-
-# Template files (used by core.py)
-TEMPLATE_FILE = "template.md"
-INSTRUCTIONS_FILE = "instructions.md"
-LEARNINGS_FILE = "learnings.md"
-SETTINGS_FILE = "settings.yaml"
-INTERFACES_FILE = "interfaces.md"
-SETUP_FILE = "setup.md"
-
-# YAML frontmatter delimiters
-YAML_DELIMITER = "---"
-
-# Default paths (used by config.py)
-DEFAULT_TASKS_SUBDIR = "tasks"
-
-# Timeouts for old v1 system
-TIMEOUT_PLANNING = 4 * 60 * 60  # 4 hours
-TIMEOUT_IN_PROGRESS = 24 * 60 * 60  # 24 hours
-WHITESPACE_SLEEP = 600  # 10 minutes
-RACE_CONDITION_SLEEP = 5  # seconds
-
-# Infrastructure options for wizard (Local is default - first in each list)
-COMPUTE_OPTIONS = [
-    "Local",
-    "AWS Lambda",
-    "AWS EC2",
-    "GCP Cloud Functions",
-    "Azure Functions",
-    "Container (Docker)",
-]
-
-STORAGE_OPTIONS = [
-    "Local",
-    "AWS AuroraDB",
-    "AWS DynamoDB",
-    "AWS S3",
-    "GCP Cloud SQL",
-    "Azure SQL",
-]
-
-QUEUE_OPTIONS = [
-    "Local",
-    "AWS Kinesis",
-    "AWS SQS",
-    "GCP Pub/Sub",
-    "Azure Service Bus",
-]
-
-ACCESS_OPTIONS = [
-    "Local",
-    "AWS API Gateway",
-    "GCP API Gateway",
-    "Azure API Management",
-    "Direct",
-]
+# Per-type agent limits (defaults)
+DEFAULT_MAX_ENTERPRISE_ARCHITECT = 1
+DEFAULT_MAX_BUSINESS_ARCHITECT = 1
+DEFAULT_MAX_SERVICE_ENGINEER = 5
+DEFAULT_MAX_CODING_AGENT = 10
+DEFAULT_MAX_TESTING_AGENT = 5

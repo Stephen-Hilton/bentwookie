@@ -1,0 +1,1 @@
+[REWORK] Coding agent failed on component '{cmp_name}' (task {task_id}): {error}

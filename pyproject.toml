@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bentwookie"
-version = "0.2.4"
-description = "AI coding loop workflow manager with SQLite state and Claude Agent SDK integration"
+version = "0.4.2"
+description = "AI agent swarm orchestration framework with hierarchy decomposition, dependency-driven builds, and Claude Code integration"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
     {name = "BentWookie Contributors"}
 ]
@@ -20,9 +20,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Build Tools",
     "Topic :: Software Development :: Quality Assurance",
 ]
@@ -32,6 +32,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "questionary>=2.0.0",
     "flask>=3.0.0",
+    "markdown>=3.5.0",
     "claude-agent-sdk>=0.1.0",
 ]
 
@@ -57,26 +58,29 @@ where = ["src"]
 [tool.setuptools.package-data]
 bentwookie = [
     "templates/**/*",
+    "agents/prompts/*.md",
     "db/*.sql",
     "web/templates/*.html",
     "web/static/*.css",
     "web/static/*.png",
     "web/static/icons/*.png",
+    "web/static/js/*.js",
+    "web/static/css/*.css",
 ]
 
 [tool.black]
 line-length = 88
-target-version = ["py310", "py311", "py312"]
+target-version = ["py312"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_ignores = true
 strict = true

@@ -1,0 +1,1 @@
+[ESCALATION] Service engineer failed on component '{cmp_name}' (task {task_id}): {error}. Architectural review required.

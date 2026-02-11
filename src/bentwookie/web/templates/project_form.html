@@ -1,127 +1,94 @@
 {% extends "base.html" %}
-{% block title_suffix %} - {% if project %}Edit{% else %}New{% endif %} Project{% endblock %}
-
+{% block title_suffix %} - {% if project %}Edit {{ project.prjname }}{% else %}New Project{% endif %}{% endblock %}
 {% block content %}
 <div class="page-header">
-    <h1>
-        <img src="{{ url_for('static', filename='icons/ui_editproject.png') }}" alt="">
-        {% if project %}Edit{% else %}New{% endif %} Project
-    </h1>
+    <h1>{% if project %}Edit Project{% else %}New Project{% endif %}</h1>
 </div>
 
-<form method="POST" class="form">
+{% if project %}
+{# ===== EDIT MODE ===== #}
+<form method="post" class="form">
     <div class="form-group">
-        <label for="name">Name *</label>
-        <input type="text" id="name" name="name" required
-               value="{{ project.prjname if project else '' }}"
-               placeholder="my-project">
-    </div>
-
-    <div class="form-group">
-        <label for="version">Version</label>
-        <select id="version" name="version">
-            {% for v in VALID_VERSIONS %}
-            <option value="{{ v }}" {% if project and project.prjversion == v %}selected{% endif %}>{{ v }}</option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <div class="form-group">
-        <label for="priority">Priority (1-10)</label>
-        <input type="number" id="priority" name="priority" min="1" max="10"
-               value="{{ project.prjpriority if project else 5 }}">
-    </div>
-
-    <div class="form-group">
-        <label for="phase">Phase</label>
-        <select id="phase" name="phase">
-            {% for p in VALID_PROJECT_PHASES %}
-            <option value="{{ p }}" {% if project and project.prjphase == p %}selected{% endif %}>{{ p }}</option>
-            {% endfor %}
-        </select>
+        <label for="name">Project Name</label>
+        <input type="text" id="name" name="name" required value="{{ project.prjname }}">
     </div>
 
     <div class="form-group">
         <label for="desc">Description</label>
-        <textarea id="desc" name="desc" rows="3"
-                  placeholder="Project description...">{{ project.prjdesc if project else '' }}</textarea>
+        <textarea id="desc" name="desc" rows="4">{{ project.prjdesc or '' }}</textarea>
     </div>
 
     <div class="form-group">
-        <label for="codedir">Code Directory (optional)</label>
-        <input type="text" id="codedir" name="codedir"
-               value="{{ project.prjcodedir if project else '' }}"
-               placeholder="/path/to/project/code">
-        <small class="help-text">Default code directory for requests in this project</small>
+        <label for="codedir">Code Directory</label>
+        <div class="form-row">
+            <input type="text" id="codedir" name="codedir" value="{{ project.prjcodedir or '' }}" placeholder="/path/to/project" style="flex: 1;">
+            <button type="button" class="btn" onclick="folderPicker.open('codedir')">Browse...</button>
+        </div>
     </div>
 
     <div class="form-group">
-        <label for="prompt">Project Prompt/Guidelines (optional)</label>
-        <textarea id="prompt" name="prompt" rows="4"
-                  placeholder="Default instructions for all requests in this project...">{{ project.prjprompt if project else '' }}</textarea>
-        <small class="help-text">Optional. These guidelines will be included in every request.</small>
+        <label for="priority">Priority (1 = highest, 10 = lowest)</label>
+        <input type="number" id="priority" name="priority" min="1" max="10" value="{{ project.prjpriority or DEFAULT_PRIORITY }}" style="width: 80px;">
     </div>
-
-    <div class="form-group">
-        <label for="claude_md_path">Claude.md File Path (optional)</label>
-        <input type="text" id="claude_md_path" name="claude_md_path"
-               value="{{ project.prjclaudemd if project else '' }}"
-               placeholder="/path/to/project/claude.md">
-        <small class="help-text">Absolute path to a claude.md file with project-specific instructions.</small>
-    </div>
-
-    <div class="form-group">
-        <label for="model">Claude Model (optional)</label>
-        <select id="model" name="model">
-            <option value="" {% if not project or not project.prjmodel %}selected{% endif %}>Use Global Setting</option>
-            {% for m in VALID_MODELS %}
-            <option value="{{ m }}" {% if project and project.prjmodel == m %}selected{% endif %}>{{ m }}</option>
-            {% endfor %}
-        </select>
-        <small class="help-text">Override global model setting for this project</small>
-    </div>
-
-    <div class="form-group">
-        <label for="commit_enabled">Commit Phase</label>
-        <select id="commit_enabled" name="commit_enabled">
-            <option value="" {% if project and project.prjcommitenabled is none %}selected{% elif not project %}selected{% endif %}>Use Global Setting</option>
-            <option value="1" {% if project and project.prjcommitenabled == 1 %}selected{% endif %}>Enabled</option>
-            <option value="0" {% if project and project.prjcommitenabled == 0 %}selected{% endif %}>Disabled</option>
-        </select>
-        <small class="help-text">Override global commit phase setting for this project</small>
-    </div>
-
-    <div class="form-group">
-        <label for="commit_branch_mode">Commit Branch Mode</label>
-        <select id="commit_branch_mode" name="commit_branch_mode">
-            <option value="" {% if project and not project.prjcommitbranchmode %}selected{% elif not project %}selected{% endif %}>Use Global Setting</option>
-            <option value="current" {% if project and project.prjcommitbranchmode == 'current' %}selected{% endif %}>Current Branch</option>
-            <option value="other" {% if project and project.prjcommitbranchmode == 'other' %}selected{% endif %}>Other Branch</option>
-        </select>
-        <small class="help-text">Which branch to commit to</small>
-    </div>
-
-    <div class="form-group" id="branch-name-group" style="{% if project and project.prjcommitbranchmode == 'other' %}display:block{% else %}display:none{% endif %}">
-        <label for="commit_branch_name">Branch Name</label>
-        <input type="text" id="commit_branch_name" name="commit_branch_name"
-               value="{{ project.prjcommitbranchname if project else '' }}"
-               placeholder="e.g., main, develop">
-        <small class="help-text">Branch name when mode is "Other Branch"</small>
-    </div>
-
-    <script>
-    // Show/hide branch name field based on mode selection
-    document.getElementById('commit_branch_mode').addEventListener('change', function(e) {
-        const nameGroup = document.getElementById('branch-name-group');
-        nameGroup.style.display = e.target.value === 'other' ? 'block' : 'none';
-    });
-    </script>
 
     <div class="button-group">
-        <button type="submit" class="btn btn-primary">
-            {% if project %}Update{% else %}Create{% endif %}
-        </button>
+        <button type="submit" class="btn btn-primary">Update Project</button>
+        <a href="{{ url_for('project_view', prjid=project.prjid) }}" class="btn">Cancel</a>
+    </div>
+</form>
+{% else %}
+{# ===== NEW MODE ===== #}
+<form method="post" class="form">
+    <div class="form-group">
+        <label for="name">Project Name</label>
+        <input type="text" id="name" name="name" required placeholder="My New Project">
+    </div>
+
+    <div class="form-group">
+        <label for="codedir">Code Directory</label>
+        <div class="form-row">
+            <input type="text" id="codedir" name="codedir" placeholder="/path/to/project" style="flex: 1;">
+            <button type="button" class="btn" onclick="folderPicker.open('codedir')">Browse...</button>
+        </div>
+        <p class="help-text">Where the project code will be generated.</p>
+    </div>
+
+    <div class="button-group">
+        <button type="submit" class="btn btn-primary">Start Interview</button>
         <a href="{{ url_for('projects_list') }}" class="btn">Cancel</a>
     </div>
 </form>
+{% endif %}
+
+<!-- Folder Picker Modal -->
+<div class="folder-picker-overlay" id="folder-picker-overlay" style="display: none;">
+    <div class="folder-picker-modal">
+        <div class="folder-picker-header">
+            <h3>Select Folder</h3>
+            <button class="btn btn-sm" onclick="folderPicker.close()">&times;</button>
+        </div>
+        <div class="folder-picker-path" id="folder-picker-path"></div>
+        <div class="folder-picker-actions" style="margin-bottom: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
+            <button class="btn btn-sm" id="folder-picker-up" onclick="folderPicker.goUp()">Up</button>
+            <button class="btn btn-sm" id="folder-picker-new" onclick="folderPicker.showNewFolder()">+ New Folder</button>
+            <div id="folder-picker-new-input" style="display: none; flex: 1; display: none; gap: 0.5rem; align-items: center;">
+                <input type="text" id="folder-picker-new-name" placeholder="Folder name" style="flex: 1; padding: 0.25rem 0.5rem; font-size: 0.85rem;">
+                <button class="btn btn-sm btn-primary" onclick="folderPicker.createFolder()">Create</button>
+                <button class="btn btn-sm" onclick="folderPicker.hideNewFolder()">Cancel</button>
+            </div>
+        </div>
+        <div class="folder-picker-list" id="folder-picker-list"></div>
+        <div class="folder-picker-footer">
+            <button class="btn btn-primary" onclick="folderPicker.select()">Select This Folder</button>
+            <button class="btn" onclick="folderPicker.close()">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/folder-picker.js') }}"></script>
+<script>
+const folderPicker = new FolderPicker();
+</script>
 {% endblock %}

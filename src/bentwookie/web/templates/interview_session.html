@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title_suffix %} - Interview{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>{{ INTERVIEW_TYPE_NAMES.get(interview.itvtype, interview.itvtype) }} Interview</h1>
+    <div>
+        <span class="badge badge-lg badge-{{ interview.itvstatus }}">{{ interview.itvstatus }}</span>
+        <span class="badge badge-lg badge-info">{{ interview.prjname }}</span>
+    </div>
+</div>
+
+<div class="interview-phase-banner interview-phase-{{ interview.itvtype }}">
+    <div class="phase-icon">
+        {% if interview.itvtype == 'business_owner' %}&#128203;{% else %}&#127959;{% endif %}
+    </div>
+    <div class="phase-info">
+        <h2>{{ INTERVIEW_TYPE_NAMES.get(interview.itvtype, interview.itvtype) }} Interview</h2>
+        <p>{% if interview.itvtype == 'business_owner' %}
+            Defining business goals, users, success criteria, and constraints
+        {% else %}
+            Defining technical architecture, stack, scalability, and deployment
+        {% endif %}</p>
+    </div>
+    <div class="phase-status">
+        <span class="badge badge-lg badge-{{ interview.itvstatus }}">{{ interview.itvstatus }}</span>
+    </div>
+</div>
+
+<div class="chat-area">
+    <div class="chat-messages" id="chat-messages">
+        {% for msg in messages %}
+        <div class="chat-message chat-message-{{ msg.imsgsender }}"
+             {% if msg.imsgsender == 'agent' %}data-raw-content="{{ msg.imsgcontent|e }}"{% endif %}>
+            {{ msg.imsgcontent }}
+        </div>
+        {% endfor %}
+        <div class="typing-indicator" id="typing-indicator" style="display: none;">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+
+    <div id="suggested-responses" class="suggested-responses"></div>
+
+    {% if interview.itvstatus in ['pending', 'active'] %}
+    <div class="chat-input-area">
+        <textarea id="chat-input" rows="4" placeholder="Type your response..."></textarea>
+        <button id="voice-btn" class="voice-button" title="Voice input">&#127908;</button>
+        <button id="send-btn" class="btn btn-primary">Send</button>
+        <button id="complete-btn" class="btn btn-success" onclick="completeInterview()"
+            {% if messages|length < 6 %}disabled title="Continue the conversation before completing"{% endif %}>
+            Complete Interview
+        </button>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/interview-chat.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    window._interviewChat = new InterviewChat({
+        interviewId: {{ interview.itvid }},
+        messagesId: 'chat-messages',
+        inputId: 'chat-input',
+        sendBtnId: 'send-btn',
+        voiceBtnId: 'voice-btn',
+        typingId: 'typing-indicator',
+    });
+});
+
+function completeInterview() {
+    const btn = document.getElementById('complete-btn');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = 'Completing...';
+
+    fetch('/api/interviews/{{ interview.itvid }}/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            btn.disabled = false;
+            btn.textContent = 'Complete Interview';
+            return;
+        }
+        // Show summary as a final agent message
+        if (data.summary && window._interviewChat) {
+            window._interviewChat.addMessage('agent', data.summary);
+        }
+        // Disable input area
+        const inputArea = document.querySelector('.chat-input-area');
+        if (inputArea) inputArea.style.display = 'none';
+
+        // Redirect based on next step
+        if (data.next_step === 'ea') {
+            // BA done, EA unlocked — redirect to interviews list
+            setTimeout(() => {
+                window.location.href = '/interviews';
+            }, 2000);
+        } else if (data.next_step === 'design') {
+            // Both done, project advanced to design
+            setTimeout(() => {
+                window.location.href = '/projects/{{ interview.prjid }}';
+            }, 2000);
+        } else {
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        }
+    })
+    .catch(err => {
+        alert('Network error: ' + err);
+        btn.disabled = false;
+        btn.textContent = 'Complete Interview';
+    });
+}
+</script>
+{% endblock %}
