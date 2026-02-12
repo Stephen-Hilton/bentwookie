@@ -13,12 +13,12 @@ from bw.lib.docker_manager import (
     image_exists,
     run_workitem,
 )
-from bw.lib.git_ops import (
-    finalize_after_processing,
-    is_git_repo,
-    prepare_for_processing,
+from bw.lib.notify import (
+    extract_notification_from_workitem,
+    notify_completed,
+    notify_error,
+    notify_started,
 )
-from bw.lib.notify import extract_notification_from_workitem, send_notification
 from bw.lib.workitem import (
     create_next_step_workitems,
     fill_optional_frontmatter,
@@ -31,13 +31,14 @@ log = logging.getLogger(__name__)
 
 
 def pick_next_workitem(queue_path: Path) -> Path | None:
-    """Return the oldest .md file in the queue directory by mtime, or None."""
-    candidates = sorted(queue_path.glob("*.md"), key=lambda p: p.stat().st_mtime)
+    """Return the first .md file in the queue directory by filename, or None."""
+    candidates = sorted(queue_path.glob("*.md"), key=lambda p: p.name)
     return candidates[0] if candidates else None
 
 
 def move_workitem(path: Path, dest_dir: Path) -> Path:
     """Move a workitem file to dest_dir, handling filename collisions."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / path.name
     if dest.exists():
         stem = path.stem
@@ -106,13 +107,12 @@ def process_single_workitem(bw_path: Path, config: BWConfig) -> bool:
     wip_file.write_text(serialize_frontmatter(fm, body))
 
     code_path = Path(fm["code_path"])
+    workitem_name = fm.get("workitem_name", wip_file.stem)
 
-    # 4. Git: prepare
-    original_branch = None
-    if is_git_repo(code_path):
-        original_branch = prepare_for_processing(code_path)
+    # Notify: started
+    notify_started(workitem_name, str(code_path), container, bw_path)
 
-    # 5. Docker: run
+    # 4. Docker: run
     if not image_exists(config.image.name):
         error_msg = f"Docker image '{config.image.name}' not found. Run `bw init` first."
         log.error(error_msg)
@@ -129,21 +129,30 @@ def process_single_workitem(bw_path: Path, config: BWConfig) -> bool:
     )
 
     # 6. Re-read workitem (Claude may have modified it)
+    if not wip_file.exists():
+        log.error("Workitem file disappeared: %s — it may have been removed by a git branch switch", wip_file)
+        return True
     text = wip_file.read_text()
     fm, body = parse_frontmatter(text)
 
     # Check completion
     if result.timed_out:
         fm["status"] = "error"
-        _annotate_error(wip_file, "Container timed out")
+        error_detail = "Container timed out"
+        log.error("%s: %s", wip_file.name, error_detail)
         wip_file.write_text(serialize_frontmatter(fm, body))
+        _annotate_error(wip_file, error_detail)
         dest = move_workitem(wip_file, error_path)
+        notify_error(workitem_name, error_detail, container, bw_path)
     elif result.exit_code != 0:
         fm["status"] = "error"
-        error_detail = f"Container exited with code {result.exit_code}\n\nstderr:\n{result.stderr[-2000:]}"
-        _annotate_error(wip_file, error_detail)
+        stderr_tail = result.stderr[-2000:] if result.stderr else "(no stderr)"
+        error_detail = f"Container exited with code {result.exit_code}\n\nstderr:\n{stderr_tail}"
+        log.error("%s: Container failed (exit %d):\n%s", wip_file.name, result.exit_code, stderr_tail)
         wip_file.write_text(serialize_frontmatter(fm, body))
+        _annotate_error(wip_file, error_detail)
         dest = move_workitem(wip_file, error_path)
+        notify_error(workitem_name, error_detail, container, bw_path)
     elif fm.get("status") == "complete" and fm.get("complete_at"):
         # AI marked it complete
         dest = move_workitem(wip_file, done_path)
@@ -160,14 +169,9 @@ def process_single_workitem(bw_path: Path, config: BWConfig) -> bool:
     if created:
         log.info("Created %d next-step workitem(s)", len(created))
 
-    # 9. Git: commit AI changes
-    if is_git_repo(code_path):
-        finalize_after_processing(code_path, original_branch)
-
-    # 10. Notification
+    # 9. Notification
     notification = extract_notification_from_workitem(dest)
-    if notification:
-        send_notification(notification)
+    notify_completed(workitem_name, notification, container, bw_path)
 
     return True
 
@@ -178,13 +182,34 @@ def run_loop(bw_path: Path, max_iterations: int = 0) -> None:
     max_iterations: 0 = infinite loop, N = process at most N workitems.
     Re-reads config each iteration.
     """
+    # Ensure work and log directories exist
+    for subdir in ("queue", "wip", "done", "error", "review"):
+        (bw_path / "work" / subdir).mkdir(parents=True, exist_ok=True)
+    (bw_path / "logs").mkdir(parents=True, exist_ok=True)
+
     _warn_stale_wip(bw_path / "work" / "wip")
+
+    stop_file = bw_path / "work" / ".stop"
+    pause_file = bw_path / "work" / ".pause"
 
     iteration = 0
     while True:
         if max_iterations > 0 and iteration >= max_iterations:
             log.info("Reached max iterations (%d), stopping", max_iterations)
             break
+
+        # Check for .stop sentinel — graceful shutdown
+        if stop_file.exists():
+            stop_file.unlink()
+            log.info("Stop file detected — shutting down gracefully")
+            break
+
+        # Check for .pause sentinel — wait until removed
+        if pause_file.exists():
+            log.info("Pause file detected — pausing loop")
+            while pause_file.exists():
+                time.sleep(5)
+            log.info("Pause file removed — resuming loop")
 
         try:
             config = load_config(bw_path)
@@ -193,19 +218,23 @@ def run_loop(bw_path: Path, max_iterations: int = 0) -> None:
             time.sleep(30)
             continue
 
+        container = config.get_active_container()
         processed = process_single_workitem(bw_path, config)
 
         if processed:
             iteration += 1
+            # Sleep between workitems to respect rate limits
+            sleep_secs = container.sleep_seconds
+            log.info("Sleeping %ds before next iteration [%s]...", sleep_secs, container.name)
+            time.sleep(sleep_secs)
         else:
             # Queue empty
             if max_iterations > 0:
                 log.info("Queue empty, nothing to process")
                 break
             # Infinite loop — sleep before checking again
-            container = config.get_active_container()
             sleep_secs = container.sleep_seconds
-            log.info("Queue empty, sleeping %ds...", sleep_secs)
+            log.info("Queue empty [%s], sleeping %ds...", container.name, sleep_secs)
             time.sleep(sleep_secs)
 
 

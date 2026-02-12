@@ -4,6 +4,7 @@ import logging
 import re
 import shutil
 import sys
+import time
 from pathlib import Path
 
 import click
@@ -12,7 +13,9 @@ from bw.lib.config import get_bw_path, get_package_lib_path, load_config
 from bw.lib.docker_manager import (
     build_image,
     ensure_credential_volume,
+    get_running_bw_containers,
     run_interactive_login,
+    run_interactive_shell,
 )
 from bw.lib.engine import get_status, run_loop
 from bw.lib.workitem import create_workitem_from_instructions, generate_workitem_filename
@@ -71,11 +74,14 @@ def init():
         else:
             click.echo(f"  Exists:  {templates_dest}/")
 
-    # 4. Create work directories
+    # 4. Create work and log directories
     for subdir in ["queue", "wip", "done", "error", "review"]:
         d = bw_path / "work" / subdir
         d.mkdir(parents=True, exist_ok=True)
         click.echo(f"  Directory ready: {d}")
+    logs_dir = bw_path / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    click.echo(f"  Directory ready: {logs_dir}")
 
     # 5. Load config (now that bw/lib/config.yaml exists)
     config = load_config(bw_path)
@@ -91,13 +97,45 @@ def init():
     else:
         click.echo("\nWarning: No Dockerfile found at {dockerfile}. Skipping image build.", err=True)
 
-    # 8. Create credential volumes for all containers
+    # 7. Create credential volumes for all containers
     click.echo("\nCreating credential volumes...")
     for container in config.containers:
         if ensure_credential_volume(container.name):
             click.echo(f"  Volume ready: bw-creds-{container.name}")
 
     click.echo("\nBW init complete.")
+
+    # 8. Guided auth for the active container
+    active = config.active_container
+    click.echo(f"\nTo run workitems, the '{active}' container needs Claude authentication.")
+    if click.confirm(f"Authenticate container '{active}' now?", default=True):
+        _run_auth(config, active)
+
+
+def _extract_user_instructions(body: str) -> str:
+    """Extract the user's actual instructions from the body (after frontmatter).
+
+    Handles two cases:
+    - New template: body is just the raw instructions text
+    - Old template: body has # PREAMBLE / # INSTRUCTIONS / # FINAL TASKS sections
+      → extract only the content inside # INSTRUCTIONS
+    """
+    # If there's a # INSTRUCTIONS section, extract just its content
+    lines = body.splitlines()
+    in_instructions = False
+    result = []
+    for line in lines:
+        if re.match(r"^#\s+INSTRUCTIONS\s*$", line):
+            in_instructions = True
+            continue
+        if in_instructions:
+            if line.strip() == "---" or re.match(r"^#\s+", line):
+                break
+            result.append(line)
+    if result:
+        return "\n".join(result).strip()
+    # No # INSTRUCTIONS heading — body IS the instructions (new template)
+    return body.strip()
 
 
 def _parse_instructions_metadata(text: str) -> tuple[str | None, str | None]:
@@ -163,11 +201,13 @@ def new(name, code):
 
 
 @main.command()
-@click.option("--instructions", "-i", required=True, type=click.Path(exists=True, dir_okay=False),
-              help="Path to the instructions file")
+@click.argument("instructions", type=click.Path(exists=True, dir_okay=False))
 @click.option("--container", default=None, help="Container name (defaults to active_container)")
 def queue(instructions, container):
-    """Add an instructions file to the work queue."""
+    """Add an instructions file to the work queue.
+
+    INSTRUCTIONS is the path to the instructions markdown file.
+    """
     from bw.lib.workitem import parse_frontmatter
 
     instr_text = Path(instructions).read_text()
@@ -194,21 +234,21 @@ def queue(instructions, container):
     config = load_config(bw_path)
     container_name = container or config.active_container
 
-    # Strip frontmatter and any # INSTRUCTIONS heading — only pass the body content
     _, instr_body = parse_frontmatter(instr_text)
-    # Remove leading "# INSTRUCTIONS" heading if present (template already has it)
-    instr_body = re.sub(r"^\s*#\s+INSTRUCTIONS\s*\n", "", instr_body)
+    user_instructions = _extract_user_instructions(instr_body)
+
+    filename = generate_workitem_filename(file_name)
 
     content = create_workitem_from_instructions(
         bw_path=bw_path,
         name=file_name,
         code_path=code_path,
-        instructions_text=instr_body.strip(),
+        instructions_text=user_instructions,
+        filename=filename,
         container_name=container_name,
         version=config.version,
     )
 
-    filename = generate_workitem_filename(file_name)
     queue_dir = bw_path / "work" / "queue"
     queue_dir.mkdir(parents=True, exist_ok=True)
     dest = queue_dir / filename
@@ -218,11 +258,13 @@ def queue(instructions, container):
 
 
 @main.command()
-@click.option("--instructions", "-i", required=True, type=click.Path(dir_okay=False),
-              help="Path to the instructions markdown file to validate")
+@click.argument("instructions", type=click.Path(dir_okay=False))
 @click.option("--fix", is_flag=True, help="Auto-fix correctable issues in place")
 def validate(instructions, fix):
-    """Validate (and optionally fix) an instructions file before queuing."""
+    """Validate (and optionally fix) an instructions file before queuing.
+
+    INSTRUCTIONS is the path to the instructions markdown file.
+    """
     from bw.lib.workitem import parse_frontmatter, serialize_frontmatter
 
     path = Path(instructions)
@@ -354,15 +396,141 @@ def run(mode):
             click.echo(f"Invalid mode: '{mode}'. Use 'once', a number, or 'loop'.", err=True)
             sys.exit(1)
 
+    # Clear any leftover sentinel files
+    work_path = bw_path / "work"
+    for sentinel in (".stop", ".pause"):
+        f = work_path / sentinel
+        if f.exists():
+            f.unlink()
+            click.echo(f"  Removed stale {sentinel} file")
+
+    # Check for already-running BW containers
+    running = get_running_bw_containers()
+    if running:
+        click.echo(f"\nRunning BW containers ({len(running)}):")
+        for name in running:
+            click.echo(f"  - {name}")
+        if not click.confirm(
+            "\nThere appears to already be a bw loop running in this project. "
+            "Start a new loop?",
+            default=False,
+        ):
+            click.echo("Aborted.")
+            return
+
     click.echo(f"Starting BW engine (max_iterations={max_iter or 'infinite'})...")
     run_loop(bw_path, max_iterations=max_iter)
     click.echo("Engine stopped.")
 
 
 @main.command()
-@click.argument("container_name")
-def login(container_name):
-    """Run interactive `claude login` in a container for credential setup."""
+def stop():
+    """Gracefully stop the engine after the current workitem finishes."""
+    try:
+        bw_path = get_bw_path()
+    except FileNotFoundError:
+        click.echo("Error: Could not find a bw/ directory.", err=True)
+        sys.exit(1)
+
+    stop_file = bw_path / "work" / ".stop"
+    stop_file.touch()
+    click.echo("Stop requested — the engine will exit after the current workitem completes.")
+
+
+@main.command()
+@click.argument("action", default="on", type=click.Choice(["on", "off"]))
+def pause(action):
+    """Pause or unpause the engine loop.
+
+    ACTION: 'on' (default) pauses, 'off' resumes.
+    """
+    try:
+        bw_path = get_bw_path()
+    except FileNotFoundError:
+        click.echo("Error: Could not find a bw/ directory.", err=True)
+        sys.exit(1)
+
+    pause_file = bw_path / "work" / ".pause"
+    if action == "on":
+        pause_file.touch()
+        click.echo("Pause requested — the engine will pause after the current workitem completes.")
+        click.echo("Run `bw pause off` to resume.")
+    else:
+        if pause_file.exists():
+            pause_file.unlink()
+            click.echo("Pause removed — the engine will resume shortly.")
+        else:
+            click.echo("No pause file found — engine is not paused.")
+
+
+@main.command()
+@click.pass_context
+def unpause(ctx):
+    """Resume a paused engine loop (alias for 'bw pause off')."""
+    ctx.invoke(pause, action="off")
+
+
+def _run_auth(config, container_name: str) -> None:
+    """Shared auth flow: validate container name, show guidance, launch interactive login."""
+    valid_names = [c.name for c in config.containers]
+    if container_name not in valid_names:
+        click.echo(f"Unknown container '{container_name}'. Valid: {', '.join(valid_names)}", err=True)
+        sys.exit(1)
+
+    click.echo(f"\n  Container:    {container_name}")
+    click.echo(f"  Credentials:  bw-creds-{container_name} (Docker volume)")
+    click.echo(f"  Image:        {config.image.name}")
+    click.echo("\n  This will open an interactive Claude login session inside a container.")
+    click.echo("  Follow the prompts to authenticate with your Anthropic account.")
+    click.echo("\n  Shelling into container...")
+    time.sleep(2)
+
+    run_interactive_login(container_name, config.image.name)
+
+
+@main.command()
+@click.argument("container_name", required=False, default=None)
+def auth(container_name):
+    """Authenticate a container for Claude access.
+
+    If CONTAINER_NAME is omitted, authenticates the active container.
+    """
+    try:
+        bw_path = get_bw_path()
+    except FileNotFoundError:
+        click.echo("Error: Could not find a bw/ directory. Run `bw init` first.", err=True)
+        sys.exit(1)
+
+    config = load_config(bw_path)
+    target = container_name or config.active_container
+    ensure_credential_volume(target)
+    _run_auth(config, target)
+
+
+# Alias: `bw oauth` does the same as `bw auth`
+@main.command("oauth")
+@click.argument("container_name", required=False, default=None)
+def oauth(container_name):
+    """Authenticate a container for Claude access (alias for 'auth')."""
+    try:
+        bw_path = get_bw_path()
+    except FileNotFoundError:
+        click.echo("Error: Could not find a bw/ directory. Run `bw init` first.", err=True)
+        sys.exit(1)
+
+    config = load_config(bw_path)
+    target = container_name or config.active_container
+    ensure_credential_volume(target)
+    _run_auth(config, target)
+
+
+@main.command()
+@click.argument("name")
+def container(name):
+    """Switch the active container.
+
+    Updates active_container in config.yaml to NAME.
+    """
     try:
         bw_path = get_bw_path()
     except FileNotFoundError:
@@ -370,15 +538,56 @@ def login(container_name):
         sys.exit(1)
 
     config = load_config(bw_path)
-
-    # Validate container name
     valid_names = [c.name for c in config.containers]
-    if container_name not in valid_names:
-        click.echo(f"Unknown container '{container_name}'. Valid: {', '.join(valid_names)}", err=True)
+    if name not in valid_names:
+        click.echo(f"Unknown container '{name}'. Valid: {', '.join(valid_names)}", err=True)
         sys.exit(1)
 
-    click.echo(f"Launching interactive login for '{container_name}'...")
-    run_interactive_login(container_name, config.image.name)
+    if name == config.active_container:
+        click.echo(f"Already active: {name}")
+        return
+
+    # Update config.yaml
+    config_file = bw_path / "lib" / "config.yaml"
+    text = config_file.read_text()
+    text = re.sub(
+        r"(active_container:\s*)(\S+)",
+        rf"\g<1>{name}",
+        text,
+    )
+    config_file.write_text(text)
+    click.echo(f"Active container: {config.active_container} → {name}")
+
+
+@main.command()
+@click.argument("container_name", required=False, default=None)
+def shell(container_name):
+    """Open an interactive bash shell inside a container.
+
+    Useful for debugging: check credentials, test claude commands, etc.
+    If CONTAINER_NAME is omitted, uses the active container.
+    """
+    try:
+        bw_path = get_bw_path()
+    except FileNotFoundError:
+        click.echo("Error: Could not find a bw/ directory. Run `bw init` first.", err=True)
+        sys.exit(1)
+
+    config = load_config(bw_path)
+    target = container_name or config.active_container
+
+    valid_names = [c.name for c in config.containers]
+    if target not in valid_names:
+        click.echo(f"Unknown container '{target}'. Valid: {', '.join(valid_names)}", err=True)
+        sys.exit(1)
+
+    click.echo(f"\n  Container:    {target}")
+    click.echo(f"  Credentials:  bw-creds-{target} (Docker volume)")
+    click.echo(f"  Image:        {config.image.name}")
+    click.echo("\n  Shelling into container...")
+    time.sleep(2)
+
+    run_interactive_shell(target, config.image.name)
 
 
 if __name__ == "__main__":
