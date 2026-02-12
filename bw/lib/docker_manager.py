@@ -3,6 +3,7 @@
 import logging
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from bw.lib.config import ContainerConfig
@@ -144,6 +145,25 @@ WIP="{wip_file}"
 FLAGS="{flags}"
 SNIPPETS="{snippets_file}"
 
+# Heartbeat: monitor log file activity, write a status line if quiet for 5 minutes
+_bw_heartbeat() {{
+    INTERVAL=300
+    while true; do
+        sleep "$INTERVAL"
+        if [ -f "$LOG" ]; then
+            LAST_MOD=$(stat -c %Y "$LOG" 2>/dev/null || stat -f %m "$LOG" 2>/dev/null)
+            NOW=$(date +%s)
+            IDLE=$(( NOW - LAST_MOD ))
+            if [ "$IDLE" -ge "$INTERVAL" ]; then
+                echo "[BW HEARTBEAT $(date '+%H:%M:%S')] Log idle for ${{IDLE}}s — container still alive" >> "$LOG"
+            fi
+        fi
+    done
+}}
+_bw_heartbeat &
+BW_HEARTBEAT_PID=$!
+trap "kill $BW_HEARTBEAT_PID 2>/dev/null" EXIT
+
 # Read PREAMBLE and FINAL_TASKS from prompt_snippets.yaml
 # Uses python3 (available in container) for reliable YAML parsing
 PREAMBLE=$(python3 -c "import yaml; d=yaml.safe_load(open('$SNIPPETS')); print(d.get('PREAMBLE',''))")
@@ -201,6 +221,94 @@ echo "$FINAL_TASKS" | claude -p "Now perform all of these final tasks. Do not st
             stderr=e.stderr or "" if hasattr(e, "stderr") else "",
             timed_out=True,
         )
+
+
+def get_running_bw_container_details() -> list[dict]:
+    """Return details of running BW containers: name, status, project path, and workitem."""
+    try:
+        result = subprocess.run(
+            ["docker", "ps", "--filter", "label=bentwookie", "--format", "{{.Names}}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return []
+    except subprocess.TimeoutExpired:
+        log.warning("Docker not responding when checking running containers")
+        return []
+
+    containers = []
+    for name in result.stdout.strip().splitlines():
+        info = {"name": name, "status": "", "project": "", "workitem": "", "elapsed": ""}
+        try:
+            fmt = (
+                "{{.State.Status}}"
+                "|{{range .Mounts}}{{if eq .Destination \"/app/project\"}}{{.Source}}{{end}}{{end}}"
+                "|{{range .Mounts}}{{if eq .Destination \"/app/bw\"}}{{.Source}}{{end}}{{end}}"
+                "|{{.State.StartedAt}}"
+            )
+            inspect = subprocess.run(
+                ["docker", "inspect", name, "--format", fmt],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if inspect.returncode == 0:
+                parts = inspect.stdout.strip().split("|")
+                info["status"] = parts[0] if len(parts) > 0 else ""
+                info["project"] = parts[1] if len(parts) > 1 else ""
+                bw_path = parts[2] if len(parts) > 2 else ""
+                if bw_path:
+                    info["workitem"] = _read_wip_workitem_name(Path(bw_path))
+                started_at = parts[3] if len(parts) > 3 else ""
+                if started_at:
+                    info["elapsed"] = _format_elapsed(started_at)
+        except subprocess.TimeoutExpired:
+            pass
+        containers.append(info)
+    return containers
+
+
+def _format_elapsed(started_at: str) -> str:
+    """Convert a Docker StartedAt timestamp to a human-readable elapsed time."""
+    try:
+        # Docker gives ISO format like 2026-02-12T16:10:35.306568333Z
+        # Python can't parse nanoseconds, so truncate to microseconds
+        clean = started_at.replace("Z", "+00:00")
+        if "." in clean:
+            dot_idx = clean.index(".")
+            plus_idx = clean.index("+", dot_idx)
+            frac = clean[dot_idx + 1:plus_idx][:6]
+            clean = clean[:dot_idx + 1] + frac + clean[plus_idx:]
+        start = datetime.fromisoformat(clean)
+        elapsed = datetime.now(timezone.utc) - start
+        total_secs = int(elapsed.total_seconds())
+        hours, remainder = divmod(total_secs, 3600)
+        mins, secs = divmod(remainder, 60)
+        if hours:
+            return f"{hours}h {mins:02d}m {secs:02d}s"
+        return f"{mins}m {secs:02d}s"
+    except Exception:
+        return ""
+
+
+def _read_wip_workitem_name(bw_path: Path) -> str:
+    """Read the workitem_name from the first .md file in wip/."""
+    wip_dir = bw_path / "work" / "wip"
+    if not wip_dir.is_dir():
+        return ""
+    files = sorted(wip_dir.glob("*.md"))
+    if not files:
+        return ""
+    # Quick parse: find workitem_name in frontmatter without importing workitem module
+    for line in files[0].read_text().splitlines():
+        line = line.strip()
+        if line == "---":
+            continue
+        if line.startswith("workitem_name:"):
+            return line.split(":", 1)[1].strip()
+    return files[0].stem
 
 
 def get_running_bw_containers() -> list[str]:

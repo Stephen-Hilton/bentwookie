@@ -13,6 +13,7 @@ from bw.lib.config import get_bw_path, get_package_lib_path, load_config
 from bw.lib.docker_manager import (
     build_image,
     ensure_credential_volume,
+    get_running_bw_container_details,
     get_running_bw_containers,
     run_interactive_login,
     run_interactive_shell,
@@ -522,6 +523,73 @@ def oauth(container_name):
     target = container_name or config.active_container
     ensure_credential_volume(target)
     _run_auth(config, target)
+
+
+@main.command()
+@click.argument("lines", default=30, type=int, required=False)
+@click.option("--follow", "-f", is_flag=True, help="Follow log output (Ctrl+C to stop)")
+def logs(lines, follow):
+    """Show the log of the active workitem in wip/.
+
+    LINES is the number of lines to display (default: 30).
+    Use -f to follow live output.
+    """
+    try:
+        bw_path = get_bw_path()
+    except FileNotFoundError:
+        click.echo("Error: Could not find a bw/ directory.", err=True)
+        sys.exit(1)
+
+    # Find the active workitem in wip/
+    wip_dir = bw_path / "work" / "wip"
+    wip_files = sorted(wip_dir.glob("*.md")) if wip_dir.is_dir() else []
+    if not wip_files:
+        click.echo("No workitems in wip/ — nothing is running.")
+        return
+
+    # Use the first wip file (should typically be only one)
+    wip_file = wip_files[0]
+    log_file = bw_path / "logs" / f"{wip_file.name}.log"
+
+    if not log_file.exists():
+        click.echo(f"Log file not found: {log_file}")
+        click.echo("The container may not have started writing yet.")
+        return
+
+    click.echo(f"Tailing: {log_file.name}")
+    click.echo(f"Workitem: {wip_file.stem}")
+    click.echo("---")
+
+    import subprocess as sp
+    tail_cmd = ["tail", f"-n{lines}"]
+    if follow:
+        tail_cmd.append("-f")
+    tail_cmd.append(str(log_file))
+
+    try:
+        sp.run(tail_cmd)
+    except KeyboardInterrupt:
+        click.echo("\n--- Stopped following logs ---")
+
+
+@main.command()
+def containers():
+    """List all running BW containers and their project paths."""
+    details = get_running_bw_container_details()
+    if not details:
+        click.echo("No BW containers running.")
+        return
+
+    click.echo(f"Running BW containers ({len(details)}):\n")
+    for c in details:
+        click.echo(f"  {c['name']}")
+        click.echo(f"    Status:   {c['status']}")
+        click.echo(f"    Project:  {c['project'] or '(unknown)'}")
+        if c.get("workitem"):
+            click.echo(f"    Workitem: {c['workitem']}")
+        if c.get("elapsed"):
+            click.echo(f"    Elapsed:  {c['elapsed']}")
+        click.echo()
 
 
 @main.command()
