@@ -129,47 +129,34 @@ def create_workitem_from_instructions(
     name: str,
     code_path: str,
     instructions_text: str,
+    filename: str,
     container_name: str = "dev",
     version: str = "0.3.0",
-    infra_file: str = "",
 ) -> str:
-    """Merge template + instructions + snippets into a complete workitem.
+    """Create a clean workitem file: frontmatter + instructions only.
 
-    Returns the assembled workitem text.
+    PREAMBLE and FINAL TASKS are NOT included in the file — they are
+    sent as separate prompts by the Docker runner at execution time.
+    This keeps the workitem file as a clean record of work requested
+    and (after processing) work completed.
+
+    Args:
+        filename: The exact filename this workitem will be saved as.
     """
-    # Load template
-    template_file = bw_path / "lib" / "templates" / "workitem.md"
-    if not template_file.exists():
-        raise FileNotFoundError(f"Workitem template not found: {template_file}")
-    template = template_file.read_text()
+    fm = {
+        "workitem_name": name,
+        "container_name": container_name,
+        "bwversion": version,
+        "status": "queued",
+        "code_path": code_path,
+        "started_at": "",
+        "complete_at": "",
+    }
 
-    # Load snippets
-    snippets = load_prompt_snippets(bw_path)
-    preamble = snippets.get("PREAMBLE", "")
-    final_tasks = snippets.get("FINAL_TASKS", "")
+    body = f"""# INSTRUCTIONS
+{instructions_text}
 
-    # Parse template frontmatter
-    fm, body = parse_frontmatter(template)
-
-    # Fill frontmatter
-    fm["workitem_name"] = name
-    fm["code_path"] = code_path
-    fm["container_name"] = container_name
-    fm["bwversion"] = version
-    fm["status"] = "queued"
-    fm["started_at"] = ""
-    fm["complete_at"] = ""
-    if infra_file:
-        fm["infra_file"] = infra_file
-
-    # Replace placeholders
-    body = body.replace("{PREAMBLE}", preamble)
-    body = body.replace("{USER_INSTRUCTIONS}", instructions_text)
-    body = body.replace("{FINAL_TASKS}", final_tasks)
-
-    # Also replace {workitem.md} references in snippets with the actual filename
-    filename = generate_workitem_filename(name)
-    body = body.replace("{workitem.md}", filename)
+"""
 
     return serialize_frontmatter(fm, body)
 
@@ -200,7 +187,7 @@ def parse_next_steps(text: str) -> list[dict]:
             else:
                 log.warning("nextstep block is not a dict: %s", block[:100])
         except yaml.YAMLError as e:
-            log.warning("Failed to parse nextstep block: %s", e)
+            log.debug("Skipping unparseable nextstep block: %s", e)
     return steps
 
 
@@ -229,16 +216,21 @@ def create_next_step_workitems(
     """Parse next steps from a completed workitem and create new workitem files.
 
     Required steps → queue/, Recommended steps → review/.
+    code_path is always inherited from the parent workitem's frontmatter.
     Returns list of created file paths.
     """
     steps = parse_next_steps(workitem_text)
     if not steps:
         return []
 
+    # Inherit code_path from parent workitem
+    parent_fm, _ = parse_frontmatter(workitem_text)
+    parent_code_path = parent_fm.get("code_path", "")
+
     created = []
     for step in steps:
         name = step.get("workitem_name", "untitled-nextstep")
-        code_path = step.get("code_path", "")
+        code_path = parent_code_path
         instructions = step.get("instructions", "")
         step_type = _classify_step(step, workitem_text)
 
@@ -246,15 +238,16 @@ def create_next_step_workitems(
             log.warning("Skipping nextstep with no instructions: %s", name)
             continue
 
+        filename = generate_workitem_filename(name)
+
         content = create_workitem_from_instructions(
             bw_path=bw_path,
             name=name,
             code_path=code_path,
             instructions_text=instructions,
+            filename=filename,
             version=config_version,
         )
-
-        filename = generate_workitem_filename(name)
         if step_type == "required":
             dest = bw_path / "work" / "queue" / filename
         else:

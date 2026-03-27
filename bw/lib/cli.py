@@ -399,7 +399,7 @@ def run(mode):
 
     # Clear any leftover sentinel files
     work_path = bw_path / "work"
-    for sentinel in (".stop", ".pause"):
+    for sentinel in (".stop", ".pause", ".restart"):
         f = work_path / sentinel
         if f.exists():
             f.unlink()
@@ -419,9 +419,22 @@ def run(mode):
             click.echo("Aborted.")
             return
 
+    # Persist run settings for restart
+    (bw_path / "lib" / ".run_settings").write_text(mode)
+
     click.echo(f"Starting BW engine (max_iterations={max_iter or 'infinite'})...")
-    run_loop(bw_path, max_iterations=max_iter)
-    click.echo("Engine stopped.")
+    restart_requested = run_loop(bw_path, max_iterations=max_iter)
+
+    if restart_requested:
+        click.echo(f"Restarting BW engine (mode={mode})...")
+        import os
+        os.execvp("bw", ["bw", "run", mode])
+    else:
+        # Clean up run settings on normal stop
+        settings_file = bw_path / "lib" / ".run_settings"
+        if settings_file.exists():
+            settings_file.unlink()
+        click.echo("Engine stopped.")
 
 
 @main.command()
@@ -436,6 +449,30 @@ def stop():
     stop_file = bw_path / "work" / ".stop"
     stop_file.touch()
     click.echo("Stop requested — the engine will exit after the current workitem completes.")
+
+
+@main.command()
+def restart():
+    """Gracefully restart the engine after the current workitem finishes.
+
+    The engine will finish the current workitem, then re-exec with
+    the same run settings (mode) it was originally started with.
+    """
+    try:
+        bw_path = get_bw_path()
+    except FileNotFoundError:
+        click.echo("Error: Could not find a bw/ directory.", err=True)
+        sys.exit(1)
+
+    settings_file = bw_path / "lib" / ".run_settings"
+    if not settings_file.exists():
+        click.echo("No active run settings found — is the engine running?", err=True)
+        sys.exit(1)
+
+    restart_file = bw_path / "work" / ".restart"
+    restart_file.touch()
+    mode = settings_file.read_text().strip()
+    click.echo(f"Restart requested (mode={mode}) — the engine will restart after the current workitem completes.")
 
 
 @main.command()

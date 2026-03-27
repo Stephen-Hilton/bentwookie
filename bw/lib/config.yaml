@@ -16,12 +16,18 @@ containers:
   - name: dev
     dangerously_skip_permissions: true
     sleep_seconds: 120
-    model: sonnet
+    model: claude-opus-4-6
+    notify: slack
+    timeout_seconds: 1800       # hard cap per workitem (seconds)
+    max_idle_heartbeats: 3      # kill claude after N consecutive 5-min idle heartbeats (0=disabled)
   - name: work
     dangerously_skip_permissions: true
     sleep_seconds: 300
-    model: sonnet
+    model: claude-opus-4-6
     weekly_tokens_consumed: "5%"
+    notify: slack
+    timeout_seconds: 1800
+    max_idle_heartbeats: 3
 
 
 # Work directory locations, relative to the repo root.

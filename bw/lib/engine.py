@@ -6,9 +6,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from bw.lib.config import BWConfig, load_config
+from bw.lib.config import BWConfig, get_package_lib_path, load_config
 from bw.lib.docker_manager import (
     ContainerResult,
+    build_image,
     check_container_status,
     image_exists,
     run_workitem,
@@ -112,13 +113,18 @@ def process_single_workitem(bw_path: Path, config: BWConfig) -> bool:
     # Notify: started
     notify_started(workitem_name, str(code_path), container, bw_path)
 
-    # 4. Docker: run
+    # 4. Docker: check image, auto-rebuild if missing
     if not image_exists(config.image.name):
-        error_msg = f"Docker image '{config.image.name}' not found. Run `bw init` first."
-        log.error(error_msg)
-        _annotate_error(wip_file, error_msg)
-        move_workitem(wip_file, error_path)
-        return True
+        log.warning("Docker image '%s' not found — attempting auto-rebuild...", config.image.name)
+        dockerfile = get_package_lib_path() / "Dockerfile"
+        if dockerfile.exists() and build_image(dockerfile, config.image.name):
+            log.info("Auto-rebuild of '%s' succeeded", config.image.name)
+        else:
+            error_msg = f"Docker image '{config.image.name}' not found and auto-rebuild failed. Run `bw init` manually."
+            log.error(error_msg)
+            _annotate_error(wip_file, error_msg)
+            move_workitem(wip_file, error_path)
+            return True
 
     result: ContainerResult = run_workitem(
         workitem_path=wip_file,
@@ -145,14 +151,23 @@ def process_single_workitem(bw_path: Path, config: BWConfig) -> bool:
         dest = move_workitem(wip_file, error_path)
         notify_error(workitem_name, error_detail, container, bw_path)
     elif result.exit_code != 0:
-        fm["status"] = "error"
-        stderr_tail = result.stderr[-2000:] if result.stderr else "(no stderr)"
-        error_detail = f"Container exited with code {result.exit_code}\n\nstderr:\n{stderr_tail}"
-        log.error("%s: Container failed (exit %d):\n%s", wip_file.name, result.exit_code, stderr_tail)
-        wip_file.write_text(serialize_frontmatter(fm, body))
-        _annotate_error(wip_file, error_detail)
-        dest = move_workitem(wip_file, error_path)
-        notify_error(workitem_name, error_detail, container, bw_path)
+        # If Claude already marked workitem complete (e.g. watchdog killed a stuck-but-done process),
+        # treat as success rather than error
+        if fm.get("status") == "complete" and fm.get("complete_at"):
+            log.warning(
+                "%s: Container exited with code %d but workitem was marked complete — treating as success",
+                wip_file.name, result.exit_code,
+            )
+            dest = move_workitem(wip_file, done_path)
+        else:
+            fm["status"] = "error"
+            stderr_tail = result.stderr[-2000:] if result.stderr else "(no stderr)"
+            error_detail = f"Container exited with code {result.exit_code}\n\nstderr:\n{stderr_tail}"
+            log.error("%s: Container failed (exit %d):\n%s", wip_file.name, result.exit_code, stderr_tail)
+            wip_file.write_text(serialize_frontmatter(fm, body))
+            _annotate_error(wip_file, error_detail)
+            dest = move_workitem(wip_file, error_path)
+            notify_error(workitem_name, error_detail, container, bw_path)
     elif fm.get("status") == "complete" and fm.get("complete_at"):
         # AI marked it complete
         dest = move_workitem(wip_file, done_path)
@@ -176,11 +191,12 @@ def process_single_workitem(bw_path: Path, config: BWConfig) -> bool:
     return True
 
 
-def run_loop(bw_path: Path, max_iterations: int = 0) -> None:
+def run_loop(bw_path: Path, max_iterations: int = 0) -> bool:
     """Main processing loop.
 
     max_iterations: 0 = infinite loop, N = process at most N workitems.
     Re-reads config each iteration.
+    Returns True if a restart was requested.
     """
     # Ensure work and log directories exist
     for subdir in ("queue", "wip", "done", "error", "review"):
@@ -191,6 +207,7 @@ def run_loop(bw_path: Path, max_iterations: int = 0) -> None:
 
     stop_file = bw_path / "work" / ".stop"
     pause_file = bw_path / "work" / ".pause"
+    restart_file = bw_path / "work" / ".restart"
 
     iteration = 0
     while True:
@@ -203,6 +220,12 @@ def run_loop(bw_path: Path, max_iterations: int = 0) -> None:
             stop_file.unlink()
             log.info("Stop file detected — shutting down gracefully")
             break
+
+        # Check for .restart sentinel — finish current item then restart
+        if restart_file.exists():
+            restart_file.unlink()
+            log.info("Restart file detected — restarting after cleanup")
+            return True
 
         # Check for .pause sentinel — wait until removed
         if pause_file.exists():
@@ -236,6 +259,8 @@ def run_loop(bw_path: Path, max_iterations: int = 0) -> None:
             sleep_secs = container.sleep_seconds
             log.info("Queue empty [%s], sleeping %ds...", container.name, sleep_secs)
             time.sleep(sleep_secs)
+
+    return False
 
 
 def get_status(bw_path: Path) -> dict:

@@ -22,6 +22,23 @@ def is_git_repo(code_path: Path) -> bool:
     return result.returncode == 0
 
 
+def get_repo_root(path: Path) -> Path | None:
+    """Return the git repo root for a path, or None if not in a repo."""
+    result = _run(["git", "rev-parse", "--show-toplevel"], cwd=path)
+    if result.returncode == 0:
+        return Path(result.stdout.strip())
+    return None
+
+
+def shares_repo(path_a: Path, path_b: Path) -> bool:
+    """Check if two paths are inside the same git repository."""
+    root_a = get_repo_root(path_a)
+    root_b = get_repo_root(path_b)
+    if root_a is None or root_b is None:
+        return False
+    return root_a.resolve() == root_b.resolve()
+
+
 def get_current_branch(code_path: Path) -> str | None:
     """Return the current branch name, or None."""
     result = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=code_path)

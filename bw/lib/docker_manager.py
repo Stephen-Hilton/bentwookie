@@ -45,19 +45,34 @@ def build_image(dockerfile_path: Path, image_name: str = "bw:0.3.0", timeout: in
         return False
 
 
-def image_exists(image_name: str) -> bool:
-    """Check if a Docker image exists locally."""
-    try:
-        result = subprocess.run(
-            ["docker", "image", "inspect", image_name],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        return result.returncode == 0
-    except subprocess.TimeoutExpired:
-        log.warning("Docker timed out checking image '%s' — is Docker running?", image_name)
-        return False
+def image_exists(image_name: str, retries: int = 3, delay: float = 5.0) -> bool:
+    """Check if a Docker image exists locally.
+
+    Retries a few times to handle transient Docker Desktop flakiness
+    (e.g. after a long container run finishes).
+    """
+    import time as _time
+
+    for attempt in range(retries):
+        try:
+            result = subprocess.run(
+                ["docker", "image", "inspect", image_name],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if result.returncode == 0:
+                return True
+            if attempt < retries - 1:
+                log.debug("Image '%s' not found (attempt %d/%d), retrying in %.0fs...",
+                          image_name, attempt + 1, retries, delay)
+                _time.sleep(delay)
+        except subprocess.TimeoutExpired:
+            log.warning("Docker timed out checking image '%s' (attempt %d/%d)",
+                        image_name, attempt + 1, retries)
+            if attempt < retries - 1:
+                _time.sleep(delay)
+    return False
 
 
 def get_credential_volume_name(container_name: str) -> str:
@@ -111,7 +126,6 @@ def run_workitem(
     bw_path: Path,
     container_config: ContainerConfig,
     image_name: str = "bw:0.3.0",
-    timeout: int = 3600,
 ) -> ContainerResult:
     """Run a workitem in an ephemeral Docker container.
 
@@ -139,15 +153,19 @@ def run_workitem(
     # PREAMBLE and FINAL_TASKS are read from prompt_snippets.yaml at runtime.
     # The workitem file only contains frontmatter + instructions.
     # {workitem.md} in FINAL_TASKS is replaced with the actual wip path.
-    claude_cmd = f'''set -e
+    max_idle = container_config.max_idle_heartbeats
+
+    claude_cmd = f'''set -eo pipefail
 LOG="{log_file}"
 WIP="{wip_file}"
 FLAGS="{flags}"
 SNIPPETS="{snippets_file}"
+MAX_IDLE={max_idle}
 
-# Heartbeat: monitor log file activity, write a status line if quiet for 5 minutes
+# Heartbeat + watchdog: monitor log activity, kill stuck claude after MAX_IDLE consecutive idle checks
 _bw_heartbeat() {{
     INTERVAL=300
+    IDLE_COUNT=0
     while true; do
         sleep "$INTERVAL"
         if [ -f "$LOG" ]; then
@@ -155,7 +173,18 @@ _bw_heartbeat() {{
             NOW=$(date +%s)
             IDLE=$(( NOW - LAST_MOD ))
             if [ "$IDLE" -ge "$INTERVAL" ]; then
-                echo "[BW HEARTBEAT $(date '+%H:%M:%S')] Log idle for ${{IDLE}}s — container still alive" >> "$LOG"
+                IDLE_COUNT=$((IDLE_COUNT + 1))
+                if [ "$MAX_IDLE" -gt 0 ] && [ "$IDLE_COUNT" -ge "$MAX_IDLE" ]; then
+                    echo "[BW WATCHDOG $(date '+%H:%M:%S')] Idle limit reached ($IDLE_COUNT/$MAX_IDLE heartbeats). Terminating claude process." >> "$LOG"
+                    pkill -TERM node 2>/dev/null || true
+                    sleep 5
+                    pkill -9 node 2>/dev/null || true
+                    break
+                else
+                    echo "[BW HEARTBEAT $(date '+%H:%M:%S')] Log idle for ${{IDLE}}s — container still alive ($IDLE_COUNT/$MAX_IDLE)" >> "$LOG"
+                fi
+            else
+                IDLE_COUNT=0
             fi
         fi
     done
@@ -163,6 +192,53 @@ _bw_heartbeat() {{
 _bw_heartbeat &
 BW_HEARTBEAT_PID=$!
 trap "kill $BW_HEARTBEAT_PID 2>/dev/null" EXIT
+
+# Status hook: PostToolUse hook that asks Claude for a status update every 5 minutes
+cat > /tmp/bw_status_hook.sh << 'HOOKEOF'
+#!/bin/bash
+NOW=$(date +%s)
+LAST=$(cat /tmp/.bw_last_status 2>/dev/null || echo 0)
+ELAPSED=$((NOW - LAST))
+if [ "$ELAPSED" -ge 300 ]; then
+    echo "$NOW" > /tmp/.bw_last_status
+    LOG_FILE="__BW_LOG_FILE__"
+    python3 -c "
+import json, sys
+msg = '[BW STATUS CHECK] 5 minutes have passed. Write a 1-sentence status summary by running: echo \\\"[STATUS] <your summary>\\\" | tee -a ' + sys.argv[1] + ''
+print(json.dumps({{'hookSpecificOutput': {{'hookEventName': 'PostToolUse', 'additionalContext': msg}}}}))" "$LOG_FILE"
+fi
+exit 0
+HOOKEOF
+sed -i "s|__BW_LOG_FILE__|$LOG|g" /tmp/bw_status_hook.sh
+chmod +x /tmp/bw_status_hook.sh
+date +%s > /tmp/.bw_last_status
+
+# Configure the PostToolUse hook in Claude settings
+python3 << 'PYEOF'
+import json, os
+settings_path = os.path.expanduser("~/.claude/settings.json")
+settings = {{}}
+if os.path.exists(settings_path):
+    try:
+        settings = json.loads(open(settings_path).read())
+    except Exception:
+        pass
+settings.setdefault("hooks", {{}})
+settings["hooks"]["PostToolUse"] = [
+    {{
+        "matcher": ".*",
+        "hooks": [
+            {{
+                "type": "command",
+                "command": "/tmp/bw_status_hook.sh",
+                "timeout": 10000
+            }}
+        ]
+    }}
+]
+os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+open(settings_path, "w").write(json.dumps(settings, indent=2))
+PYEOF
 
 # Read PREAMBLE and FINAL_TASKS from prompt_snippets.yaml
 # Uses python3 (available in container) for reliable YAML parsing
@@ -188,11 +264,15 @@ echo "$FINAL_TASKS" | claude -p "Now perform all of these final tasks. Do not st
         "-v", f"{code_path.resolve()}:/app/project",
         "-v", f"{bw_path.resolve()}:/app/bw",
         "-v", f"{cred_vol}:/home/bwuser/.claude",
+        "-v", f"{Path.home() / '.aws'}:/home/bwuser/.aws:ro",
         image_name,
         "-c", claude_cmd,
     ]
 
-    log.info("Running container for workitem: %s", wip_filename)
+    timeout = container_config.timeout_seconds
+
+    log.info("Running container for workitem: %s (timeout=%ds, idle_watchdog=%d heartbeats)",
+             wip_filename, timeout, max_idle)
     log.debug("Docker command: %s", " ".join(cmd))
 
     timed_out = False

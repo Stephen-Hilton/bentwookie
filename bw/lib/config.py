@@ -13,6 +13,9 @@ class ContainerConfig:
     sleep_seconds: int = 120
     model: str = "sonnet"
     weekly_tokens_consumed: str = ""
+    notify: str = ""
+    timeout_seconds: int = 3600
+    max_idle_heartbeats: int = 3
 
 
 @dataclass
@@ -108,6 +111,9 @@ def load_config(bw_path: Path | None = None) -> BWConfig:
             sleep_seconds=int(c.get("sleep_seconds", 120)),
             model=c.get("model", "sonnet"),
             weekly_tokens_consumed=str(c.get("weekly_tokens_consumed", "")),
+            notify=c.get("notify", ""),
+            timeout_seconds=int(c.get("timeout_seconds", 3600)),
+            max_idle_heartbeats=int(c.get("max_idle_heartbeats", 3)),
         ))
 
     # Parse work_dirs

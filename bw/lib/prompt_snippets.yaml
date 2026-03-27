@@ -5,6 +5,11 @@ PREAMBLE: |-
   This is running in a container, so feel free to install any dependencies you need, and to create any files you need.
   When you have completed the INSTRUCTIONS, perform the FINAL TASKS, and then exit.
 
+  **STATUS UPDATES**:
+  A PostToolUse hook will periodically send you a [BW STATUS CHECK] message.
+  When you receive one, immediately follow its instructions to write a 1-sentence status
+  summary to the log file, then continue your work without interruption.
+
 
 FINAL_TASKS: |-
   **IMPORTANT**:
@@ -21,7 +26,6 @@ FINAL_TASKS: |-
 
       ```nextstep
       workitem_name: deploy-service
-      code_path: /app/project
       type: required
       instructions: |-
         Deploy the service to the staging environment. Run integration tests
@@ -30,14 +34,17 @@ FINAL_TASKS: |-
 
       ```nextstep
       workitem_name: optimize-queries
-      code_path: /app/project
       type: recommended
       instructions: |-
         Review the database queries added in this workitem and look for
         optimization opportunities such as adding indexes or query caching.
       ```
 
+      Do NOT include a `code_path` field — it is inherited automatically from the parent workitem.
+
       Break next steps into two subsections:
-      - `## Required` — deployment, integration testing, performance testing, etc.
-      - `## Recommended` — future improvements, optimizations, etc.
+      - `## Required` — deployment, integration testing, performance optimization to meet clearly specified performance goals, etc.  This should be REQUIRED WORK ONLY; before marking something as required, ask yourself, "is this NEEDED to make this workitem truely complete and useful?".  Do NOT make requirements unless they are truely required.
+      - `## Recommended` — future improvements, optimizations, etc.  These would be most items, such as refactoring, performance optimizations, etc.  Recommended next steps are not required to complete the workitem, but should be considered for follow-on work.
+      Before making any next steps, always deduplicate the item with past workitems in `work/` queued, review, done, or wip.  Do not create functionally duplicate entries. 
+
   - at the very end, find the frontmatter section at the top of the {workitem.md} file, and update the `status` field to `complete`, and add a `complete_at` field with a timestamp of when you completed the FINAL TASKS.  This will trigger an automated notification to relevant stakeholders, so be sure to only update the status when you have truly completed all of the FINAL TASKS.
